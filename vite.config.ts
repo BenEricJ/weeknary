@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import legacy from '@vitejs/plugin-legacy'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
@@ -10,6 +11,10 @@ export default defineConfig({
     // The React and Tailwind plugins are both required for Make, even if
     // Tailwind is not being actively used – do not remove them
     react(),
+    legacy({
+      targets: ['defaults', 'iOS >= 13', 'Safari >= 13'],
+      modernPolyfills: true,
+    }),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
