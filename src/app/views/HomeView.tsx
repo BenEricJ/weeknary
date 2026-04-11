@@ -1,0 +1,482 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
+import {
+  Zap,
+  Moon,
+  Utensils,
+  Flame,
+  Droplet,
+  Footprints,
+  ShieldCheck,
+} from "lucide-react";
+import {
+  EventEditDrawer,
+  type EventEditDraft,
+  type EventEditSession,
+} from "../components/EventEditDrawer";
+import { WorkoutDetailDrawer } from "../components/WorkoutDetailDrawer";
+import { FocusDetailDrawer } from "../components/FocusDetailDrawer";
+import { WeekCalendar } from "../components/WeekCalendar";
+import { UserProfileDrawer } from "../components/UserProfileDrawer";
+import { WeeklyFocusCard } from "../components/home/HomeSections";
+import {
+  WeekEventDetailDrawer,
+  type WeekEventDetailItem,
+} from "../components/WeekEventDetailDrawer";
+import { DayScheduleSection } from "../components/schedule/DayScheduleSection";
+import { FOCUS_STEPS } from "../data/focusSteps";
+import {
+  CATEGORY_META,
+  WEEK_PLAN,
+  buildEventDetail,
+  getDayDate,
+  isSameDay,
+  toMinutes,
+  type CategoryKey,
+  type DayPlan,
+  type EventItem,
+  type ScheduleEntry,
+} from "../data/weekPlan";
+
+export function HomeView() {
+  const navigate = useNavigate();
+  const [weekPlan, setWeekPlan] = useState(() => WEEK_PLAN);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isFocusOpen, setIsFocusOpen] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
+  const [selectedEventDetail, setSelectedEventDetail] =
+    useState<WeekEventDetailItem | null>(null);
+  const [editingEvent, setEditingEvent] =
+    useState<EventEditSession | null>(null);
+  const [openSwipeEventId, setOpenSwipeEventId] =
+    useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<number>(() => {
+    const todayPlan = WEEK_PLAN.find((day) =>
+      isSameDay(getDayDate(day), new Date()),
+    );
+    return todayPlan?.date ?? WEEK_PLAN[0].date;
+  });
+  const [now, setNow] = useState(() => new Date());
+
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({
+    s1: true,
+  });
+
+  const toggleFocusStep = (id: string) => {
+    setCheckedItems((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const progressPercent = useMemo(() => {
+    const completedCount = Object.values(checkedItems).filter(Boolean).length;
+    return Math.round((completedCount / FOCUS_STEPS.length) * 100);
+  }, [checkedItems]);
+
+  const nextStep = useMemo(() => {
+    return (
+      FOCUS_STEPS.find((step) => !checkedItems[step.id]) ??
+      FOCUS_STEPS[FOCUS_STEPS.length - 1]
+    );
+  }, [checkedItems]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNow(new Date());
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const selectedDay = useMemo(
+    () => weekPlan.find((day) => day.date === selectedDate) ?? weekPlan[0],
+    [selectedDate, weekPlan],
+  );
+  const isSelectedDayToday = useMemo(
+    () => isSameDay(getDayDate(selectedDay), now),
+    [selectedDay, now],
+  );
+
+  const weekDays = useMemo(
+    () =>
+      weekPlan.map((day) => ({
+        day: day.dayShort,
+        date: day.date,
+      })),
+    [weekPlan],
+  );
+
+  const categoryOptions = useMemo(
+    () =>
+      Object.entries(CATEGORY_META).map(([value, meta]) => ({
+        value,
+        label: meta.label,
+      })),
+    [],
+  );
+
+  useEffect(() => {
+    setOpenSwipeEventId(null);
+  }, [selectedDate]);
+
+  const openScheduleEntry = (day: DayPlan, entry: ScheduleEntry) => {
+    setOpenSwipeEventId(null);
+
+    if (entry.workoutId) {
+      setSelectedWorkout(entry.workoutId);
+      return;
+    }
+
+    setSelectedEventDetail(buildEventDetail(day, entry));
+  };
+
+  const openEventEditor = (dayDate: number, eventId: string) => {
+    const day = weekPlan.find((entry) => entry.date === dayDate);
+    const event = day?.events.find((entry) => entry.id === eventId);
+
+    if (!day || !event) {
+      return;
+    }
+
+    setOpenSwipeEventId(null);
+    setSelectedEventDetail(null);
+    setEditingEvent({
+      dayDate,
+      dayLabel: day.dayLabel,
+      date: day.date,
+      monthLabel: day.monthLabel,
+      event: { ...event },
+    });
+  };
+
+  const saveEditedEvent = (draft: EventEditDraft) => {
+    if (!editingEvent) {
+      return;
+    }
+
+    setWeekPlan((previous) =>
+      previous.map((day) =>
+        day.date === editingEvent.dayDate
+          ? {
+              ...day,
+              events: day.events
+                .map((event) =>
+                  event.id === draft.id
+                    ? {
+                        ...event,
+                        title: draft.title,
+                        subtitle: draft.subtitle,
+                        start: draft.start,
+                        end: draft.end,
+                        category: draft.category as CategoryKey,
+                        subtasks: draft.subtasks,
+                      }
+                    : event,
+                )
+                .sort(
+                  (left, right) =>
+                    toMinutes(left.start) - toMinutes(right.start),
+                ),
+            }
+          : day,
+      ),
+    );
+
+    setEditingEvent(null);
+  };
+
+  const deleteEvent = (dayDate: number, eventId: string) => {
+    setWeekPlan((previous) =>
+      previous.map((day) =>
+        day.date === dayDate
+          ? {
+              ...day,
+              events: day.events.filter((event) => event.id !== eventId),
+            }
+          : day,
+      ),
+    );
+
+    if (selectedEventDetail?.id === eventId) {
+      setSelectedEventDetail(null);
+    }
+
+    if (editingEvent?.event.id === eventId) {
+      setEditingEvent(null);
+    }
+
+    if (openSwipeEventId === eventId) {
+      setOpenSwipeEventId(null);
+    }
+  };
+
+  return (
+    <div className="h-full w-full overflow-y-auto hide-scrollbar bg-[#FAF9F6] p-5 pb-2 flex flex-col gap-5">
+      <div className="flex justify-between items-start pt-2">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            Guten Morgen, Ben! <span className="text-2xl">👋</span>
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            {selectedDay.dayLabel}, {selectedDay.date}. {selectedDay.monthLabel}
+          </p>
+        </div>
+        <button
+          onClick={() => setIsProfileOpen(true)}
+          className="w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 active:scale-95 transition-transform"
+        >
+          <img
+            src="https://images.unsplash.com/photo-1762708590808-c453c0e4fb0f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMG1hbiUyMHBvcnRyYWl0JTIwc21pbGluZyUyMGNhc3VhbHxlbnwxfHx8fDE3NzUyNjkzMzl8MA&ixlib=rb-4.1.0&q=80&w=1080"
+            alt="Profile"
+            className="w-full h-full object-cover"
+          />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        <button
+          onClick={() => navigate("/app/review")}
+          className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
+        >
+          <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
+            <Zap size={18} strokeWidth={2.5} className="text-[#4A634A]" />
+          </div>
+          <div className="flex flex-col min-w-0 leading-tight">
+            <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
+              72
+            </span>
+            <span className="block text-[8px] font-semibold truncate text-[#4A634A]">
+              Gut
+            </span>
+          </div>
+        </button>
+        <button
+          onClick={() => navigate("/app/sleep")}
+          className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
+        >
+          <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
+            <Moon size={18} strokeWidth={2.5} className="text-[#6B5B95]" />
+          </div>
+          <div className="flex flex-col min-w-0 leading-tight">
+            <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
+              7h 15
+            </span>
+            <span className="block text-[8px] font-semibold truncate text-[#4A634A]">
+              Gut
+            </span>
+          </div>
+        </button>
+        <button
+          onClick={() => navigate("/app/training")}
+          className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
+        >
+          <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
+            <Footprints
+              size={18}
+              strokeWidth={2.5}
+              className="text-[#D37F36]"
+            />
+          </div>
+          <div className="flex flex-col min-w-0 leading-tight">
+            <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
+              90min.
+            </span>
+            <span className="block text-[8px] font-semibold truncate text-[#D37F36]">
+              Geplant
+            </span>
+          </div>
+        </button>
+        <button
+          onClick={() => navigate("/app/nutrition")}
+          className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
+        >
+          <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
+            <Utensils
+              size={18}
+              strokeWidth={2.5}
+              className="text-[#4A634A]"
+            />
+          </div>
+          <div className="flex flex-col min-w-0 leading-tight">
+            <span className="text-[11px] font-bold tracking-tight truncate text-[#4A634A]">
+              Im Plan
+            </span>
+          </div>
+        </button>
+      </div>
+
+      <div className="-mt-1">
+        <WeekCalendar
+          days={weekDays}
+          activeDate={selectedDate}
+          onDateChange={setSelectedDate}
+          className="flex justify-between items-center bg-white rounded-[16px] p-2 shadow-sm border border-gray-100/60"
+        />
+      </div>
+
+      <WeeklyFocusCard
+        onClick={() => setIsFocusOpen(true)}
+        progressPercent={progressPercent}
+        nextStep={nextStep}
+      />
+
+      <DayScheduleSection
+        title={isSelectedDayToday ? "Heute" : selectedDay.dayLabel}
+        day={{ ...selectedDay, allDayEvents: [] }}
+        categoryMeta={CATEGORY_META}
+        onOpen={(entry) => openScheduleEntry(selectedDay, entry)}
+        onEdit={(eventId) => openEventEditor(selectedDay.date, eventId)}
+        onDelete={(eventId) => deleteEvent(selectedDay.date, eventId)}
+        openSwipeEventId={openSwipeEventId}
+        onActionsOpenChange={setOpenSwipeEventId}
+        maxItems={3}
+        now={now}
+        selectionStrategy="upcoming"
+        showAllDayEvents={false}
+      />
+
+      <div>
+        <div className="px-1 mb-1.5">
+          <h3 className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">
+            Heute beachten
+          </h3>
+        </div>
+        <div className="bg-white rounded-[16px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="flex items-center gap-3 p-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
+            <div className="w-9 h-9 rounded-full bg-gray-50/80 flex items-center justify-center shrink-0">
+              <Flame size={18} className="text-[#D37F36]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-[13px] font-bold text-gray-900 leading-snug truncate">
+                Kalorien knapp
+              </h4>
+              <p className="text-[11px] text-gray-500 mt-0.5 leading-tight truncate">
+                Plane vor dem Training einen Snack ein.
+              </p>
+            </div>
+          </div>
+          <div className="h-px bg-gray-100 mx-3" />
+          <div className="flex items-center gap-3 p-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
+            <div className="w-9 h-9 rounded-full bg-gray-50/80 flex items-center justify-center shrink-0">
+              <Moon size={18} className="text-[#6B5B95]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-[13px] font-bold text-gray-900 leading-snug truncate">
+                Schlaf unter Ziel
+              </h4>
+              <p className="text-[11px] text-gray-500 mt-0.5 leading-tight truncate">
+                Heute keine harte Einheit einplanen.
+              </p>
+            </div>
+          </div>
+          <div className="h-px bg-gray-100 mx-3" />
+          <div className="flex items-center gap-3 p-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
+            <div className="w-9 h-9 rounded-full bg-gray-50/80 flex items-center justify-center shrink-0">
+              <Droplet size={18} className="text-[#789A5A]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-[13px] font-bold text-gray-900 leading-snug truncate">
+                Hydration
+              </h4>
+              <p className="text-[11px] text-gray-500 mt-0.5 leading-tight truncate">
+                Noch 1-2 Gläser bis zum Ziel.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-2">
+        <div className="px-1 mb-1.5">
+          <h3 className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">
+            Diese Woche
+          </h3>
+        </div>
+        <div className="bg-white rounded-[16px] border border-gray-100 shadow-sm p-3.5 flex justify-between items-center">
+          <div className="flex gap-2 items-center flex-1">
+            <button
+              onClick={() => navigate("/app/week")}
+              className="flex flex-col gap-1 flex-1 min-w-0 text-left rounded-md p-1 -m-1 transition-colors hover:bg-gray-50 active:scale-[0.98]"
+              aria-label="Ziele dieser Woche öffnen"
+            >
+              <div className="flex items-center gap-1 text-gray-700 font-bold text-[8px] uppercase tracking-wide">
+                <ShieldCheck size={12} className="text-[#4A634A]" />
+                <span className="truncate">Ziele</span>
+              </div>
+              <span className="font-bold text-[13px] text-gray-900 leading-none">
+                3 / 7
+              </span>
+              <div className="h-1 bg-gray-100 rounded-full mt-0.5 w-full overflow-hidden">
+                <div className="h-full bg-[#5E7A5E] rounded-full w-[42%]" />
+              </div>
+            </button>
+            <div className="w-[1px] h-8 bg-gray-100 mx-0.5" />
+            <button
+              onClick={() => navigate("/app/training")}
+              className="flex flex-col gap-1 flex-1 min-w-0 text-left rounded-md p-1 -m-1 transition-colors hover:bg-gray-50 active:scale-[0.98]"
+              aria-label="Training dieser Woche öffnen"
+            >
+              <div className="flex items-center gap-1 text-gray-700 font-bold text-[8px] uppercase tracking-wide">
+                <Footprints size={12} className="text-[#D37F36]" />
+                <span className="truncate">Training</span>
+              </div>
+              <span className="font-bold text-[13px] text-gray-900 leading-none">
+                3 / 4
+              </span>
+              <div className="h-1 bg-gray-100 rounded-full mt-0.5 w-full overflow-hidden">
+                <div className="h-full bg-[#D37F36] rounded-full w-3/4" />
+              </div>
+            </button>
+            <div className="w-[1px] h-8 bg-gray-100 mx-0.5" />
+            <button
+              onClick={() => navigate("/app/review")}
+              className="flex flex-col gap-1 flex-1 min-w-0 text-left rounded-md p-1 -m-1 transition-colors hover:bg-gray-50 active:scale-[0.98]"
+              aria-label="Plan-Review dieser Woche öffnen"
+            >
+              <div className="flex items-center gap-1 text-gray-700 font-bold text-[8px] uppercase tracking-wide">
+                <ShieldCheck size={12} className="text-[#4A634A]" />
+                <span className="truncate">Plan</span>
+              </div>
+              <span className="font-bold text-[13px] text-gray-900 leading-none">
+                82%
+              </span>
+              <div className="h-1 bg-gray-100 rounded-full mt-0.5 w-full overflow-hidden">
+                <div className="h-full bg-[#5E7A5E] rounded-full w-[82%]" />
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <WorkoutDetailDrawer
+        workoutId={selectedWorkout}
+        onClose={() => setSelectedWorkout(null)}
+      />
+      <WeekEventDetailDrawer
+        detail={selectedEventDetail}
+        onClose={() => setSelectedEventDetail(null)}
+        onEdit={() => {
+          if (!selectedEventDetail?.canEdit) {
+            return;
+          }
+
+          openEventEditor(
+            selectedEventDetail.dayDate,
+            selectedEventDetail.id,
+          );
+        }}
+      />
+      <EventEditDrawer
+        session={editingEvent}
+        categoryOptions={categoryOptions}
+        onClose={() => setEditingEvent(null)}
+        onSave={saveEditedEvent}
+      />
+      <FocusDetailDrawer
+        isOpen={isFocusOpen}
+        onClose={() => setIsFocusOpen(false)}
+        checkedItems={checkedItems}
+        onToggleStep={toggleFocusStep}
+      />
+      <UserProfileDrawer isOpen={isProfileOpen} onClose={setIsProfileOpen} />
+    </div>
+  );
+}
