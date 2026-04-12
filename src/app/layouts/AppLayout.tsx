@@ -19,7 +19,7 @@ export function AppLayout() {
   
   return (
     <div className="h-full flex flex-col w-full bg-[#FAF9F6]">
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto min-h-0">
         <Outlet />
       </main>
       
