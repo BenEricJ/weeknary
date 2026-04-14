@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router";
-import { ChevronLeft, Settings, Moon, Sun, Activity } from "lucide-react";
+import { Moon, Sun, Activity } from "lucide-react";
+import { ProfileAvatarButton } from "../components/ProfileAvatarButton";
+import { UserProfileDrawer } from "../components/UserProfileDrawer";
 
 export function SleepView() {
-  const navigate = useNavigate();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("Überblick");
 
   const weeklyData = [
@@ -19,14 +20,25 @@ export function SleepView() {
   return (
     <div className="h-full w-full bg-[#FAF9F6] flex flex-col relative overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-8 pb-4 z-10 sticky top-0 bg-[#FAF9F6]/90 backdrop-blur-md">
-        <button onClick={() => navigate("/app/home")} className="p-2 -ml-2 rounded-full hover:bg-gray-200/50">
-          <ChevronLeft size={24} className="text-gray-900" />
-        </button>
-        <span className="font-bold text-[17px] text-gray-900">Schlaf</span>
-        <button className="p-2 -mr-2 rounded-full hover:bg-gray-200/50">
-          <Settings size={22} className="text-gray-500" />
-        </button>
+      <div className="relative px-6 pt-6 pb-4">
+        <ProfileAvatarButton
+          onClick={() => setIsProfileOpen(true)}
+          className="absolute right-6 top-8"
+        />
+
+        <div className="flex justify-between items-start pt-2 pr-14">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Moon size={24} className="text-[#557FAD]" />
+              Schlaf
+            </h1>
+            <p className="text-gray-500 text-sm mt-1">
+              Mittwoch, 8. April
+              {" · "}
+              7:15 h Schlafzeit
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pb-6 flex flex-col gap-6">
@@ -155,6 +167,10 @@ export function SleepView() {
           </div>
         </div>
       </div>
+      <UserProfileDrawer
+        isOpen={isProfileOpen}
+        onClose={setIsProfileOpen}
+      />
     </div>
   );
 }

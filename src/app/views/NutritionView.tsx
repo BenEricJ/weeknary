@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -17,6 +16,8 @@ import {
 } from "lucide-react";
 import { NutritionDayDetailDrawer } from "../components/NutritionDayDetailDrawer";
 import { NutritionMealDetailDrawer } from "../components/NutritionMealDetailDrawer";
+import { ProfileAvatarButton } from "../components/ProfileAvatarButton";
+import { UserProfileDrawer } from "../components/UserProfileDrawer";
 import { WeekCalendar } from "../components/WeekCalendar";
 import {
   Drawer,
@@ -90,11 +91,11 @@ type TopStatDetails = {
 };
 
 export function NutritionView() {
-  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(() => getTodayPlanDate(NUTRITION_PLAN));
   const [isDayDetailsOpen, setIsDayDetailsOpen] = useState(false);
   const [selectedSlotType, setSelectedSlotType] = useState<MealSlotType | null>(null);
   const [selectedTopStat, setSelectedTopStat] = useState<TopStatDetails | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const selectedDay = useMemo(
     () => getDayByDate(NUTRITION_PLAN, selectedDate),
@@ -159,24 +160,24 @@ export function NutritionView() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-[#FAF9F6]">
-      <div className="sticky top-0 z-10 bg-[#FAF9F6]/95 px-6 pb-4 pt-8 backdrop-blur-md">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => navigate("/app/home")}
-            className="rounded-full p-2 -ml-2 transition-colors hover:bg-gray-200/50"
-            aria-label="Zurueck"
-          >
-            <ChevronLeft size={24} className="text-gray-900" />
-          </button>
-          <div className="flex flex-col items-center">
-            <span className="text-[17px] font-bold text-gray-900">
+      <div className="relative px-6 pt-6 pb-4">
+        <ProfileAvatarButton
+          onClick={() => setIsProfileOpen(true)}
+          className="absolute right-6 top-8"
+        />
+
+        <div className="flex justify-between items-start pt-2 pr-14">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <UtensilsCrossed size={24} className="text-[#4A634A]" />
+              Ernährung
+            </h1>
+            <p className="text-gray-500 text-sm mt-1">
               {selectedDay.dayLabel}, {selectedDay.date}. {selectedDay.monthLabel}
-            </span>
-            <span className="mt-0.5 text-[11px] font-medium text-gray-400">
-              {formatWeekRange(NUTRITION_PLAN.week.startIsoDate, NUTRITION_PLAN.week.endIsoDate)}
-            </span>
+              {" · "}
+              {plannedMacros.kcal} kcal geplant
+            </p>
           </div>
-          <div className="w-10" />
         </div>
       </div>
 
@@ -431,6 +432,10 @@ export function NutritionView() {
         stat={selectedTopStat}
         onClose={() => setSelectedTopStat(null)}
       />
+      <UserProfileDrawer
+        isOpen={isProfileOpen}
+        onClose={setIsProfileOpen}
+      />
     </div>
   );
 }
@@ -567,15 +572,6 @@ function getMealSubtitle(meal: MealRecipe | null) {
     .join(", ");
 
   return `${ingredientsPreview}${meal.ingredients.length > 3 ? " ..." : ""}`;
-}
-
-function formatWeekRange(startIsoDate: string, endIsoDate: string) {
-  return `${formatShortDate(startIsoDate)} - ${formatShortDate(endIsoDate)}`;
-}
-
-function formatShortDate(isoDate: string) {
-  const [, month, day] = isoDate.split("-");
-  return `${day}.${month}.`;
 }
 
 function formatEuro(value: number) {

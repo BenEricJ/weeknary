@@ -1,21 +1,33 @@
-import React from "react";
-import { useNavigate } from "react-router";
-import { ChevronLeft, Settings } from "lucide-react";
+import React, { useState } from "react";
+import { ClipboardCheck } from "lucide-react";
+import { ProfileAvatarButton } from "../components/ProfileAvatarButton";
+import { UserProfileDrawer } from "../components/UserProfileDrawer";
 
 export function ReviewView() {
-  const navigate = useNavigate();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   return (
     <div className="h-full w-full bg-[#FAF9F6] flex flex-col relative overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 z-10 sticky top-0 bg-[#FAF9F6]/95 backdrop-blur-md">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-gray-200/50 transition-colors">
-          <ChevronLeft size={24} className="text-gray-900" />
-        </button>
-        <span className="text-[17px] font-semibold text-gray-900 tracking-tight">Review</span>
-        <button className="p-2 -mr-2 rounded-full hover:bg-gray-200/50 transition-colors">
-          <Settings size={22} className="text-gray-900" />
-        </button>
+      <div className="relative px-6 pt-6 pb-4">
+        <ProfileAvatarButton
+          onClick={() => setIsProfileOpen(true)}
+          className="absolute right-6 top-8"
+        />
+
+        <div className="flex justify-between items-start pt-2 pr-14">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <ClipboardCheck size={24} className="text-[#4A634A]" />
+              Review
+            </h1>
+            <p className="text-gray-500 text-sm mt-1">
+              Woche 5. - 11. Mai
+              {" · "}
+              4 von 5 Ziele erreicht
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pb-28">
@@ -110,6 +122,10 @@ export function ReviewView() {
           </div>
         </div>
       </div>
+      <UserProfileDrawer
+        isOpen={isProfileOpen}
+        onClose={setIsProfileOpen}
+      />
     </div>
   );
 }

@@ -1,8 +1,12 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router";
-import { Menu, Dumbbell, Link2, Activity, Flower, CircleDot, Zap, MapIcon } from "lucide-react";
+import { Dumbbell, Link2, Activity, Flower, CircleDot, Zap, MapIcon } from "lucide-react";
 import { WorkoutDetailDrawer } from "../components/WorkoutDetailDrawer";
-import { getDefaultTrainingDate } from "../data/trainingPlan";
+import { ProfileAvatarButton } from "../components/ProfileAvatarButton";
+import { UserProfileDrawer } from "../components/UserProfileDrawer";
+import {
+  getDefaultTrainingDate,
+  getTrainingPlanRowByDate,
+} from "../data/trainingPlan";
 
 // Deine neuen aufgeteilten Komponenten:
 import { PlanSection, WorkoutsSection, ProgressSection } from "../components/training/TrainingTabs";
@@ -54,14 +58,13 @@ const progressData: Record<string, any> = {
 
 // --- KOMPONENTE ---
 export function TrainingView() {
-  const navigate = useNavigate();
-  
   // -- STATES --
   const [activeTab, setActiveTab] = useState("Plan");
   const [timeRangeTab, setTimeRangeTab] = useState("4 Wochen");
   const [activeCategory, setActiveCategory] = useState("Alle");
   const [activeDate, setActiveDate] = useState(() => getDefaultTrainingDate());
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   // Modals & Selections
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -72,23 +75,32 @@ export function TrainingView() {
   // Vorbereitete Daten
   const currentProgress = progressData[timeRangeTab] || progressData["4 Wochen"];
   const categoriesWithActiveState = categories.map(c => ({ ...c, active: c.label === activeCategory }));
+  const selectedTrainingDay = getTrainingPlanRowByDate(activeDate);
 
   return (
     <div className="h-full w-full bg-[#FAF9F6] flex flex-col relative overflow-hidden">
       
       {/* HEADER */}
-      <div className="flex items-center justify-between px-6 pt-8 pb-4 z-10 sticky top-0 bg-[#FAF9F6]/90 backdrop-blur-md">
-        <button aria-label="Navigation" onClick={() => navigate("/app/home")} className="p-2 -ml-2 rounded-full hover:bg-gray-200/50">
-          <Menu size={26} className="text-gray-900" />
-        </button>
-        <span className="font-bold text-[19px] text-gray-900 tracking-tight">Training</span>
-        <button onClick={() => navigate("/app/profile")} className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 shadow-sm shrink-0">
-          <img
-            src="https://images.unsplash.com/photo-1762708590808-c453c0e4fb0f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMG1hbiUyMHBvcnRyYWl0JTIwc21pbGluZyUyMGNhc3VhbHxlbnwxfHx8fDE3NzUyNjkzMzl8MA&ixlib=rb-4.1.0&q=80&w=1080"
-            alt="Profile Avatar"
-            className="w-full h-full object-cover"
-          />
-        </button>
+      <div className="relative px-6 pt-6 pb-4">
+        <ProfileAvatarButton
+          onClick={() => setIsProfileOpen(true)}
+          className="absolute right-6 top-8"
+        />
+
+        <div className="flex justify-between items-start pt-2 pr-14">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Dumbbell size={24} className="text-[#4A634A]" />
+              Training
+            </h1>
+            <p className="text-gray-500 text-sm mt-1">
+              {selectedTrainingDay.dayLabel}, {selectedTrainingDay.dayDate}.{" "}
+              {selectedTrainingDay.monthLabel}
+              {" · "}
+              {selectedTrainingDay.workoutIds.length} Einheiten geplant
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* CONTENT AREA */}
@@ -157,6 +169,10 @@ export function TrainingView() {
         metrics={AVAILABLE_METRICS}
         selectedMetrics={selectedMetrics}
         setSelectedMetrics={setSelectedMetrics}
+      />
+      <UserProfileDrawer
+        isOpen={isProfileOpen}
+        onClose={setIsProfileOpen}
       />
       
     </div>
