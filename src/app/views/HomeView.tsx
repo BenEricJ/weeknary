@@ -210,7 +210,20 @@ export function HomeView() {
 
   return (
     <div className="h-full w-full overflow-y-auto hide-scrollbar bg-[#FAF9F6] p-5 pb-2 flex flex-col gap-5">
-      <div className="sticky top-0 z-20 -mx-5 px-5 pb-3 flex justify-between items-start pt-2 bg-[#FAF9F6]/95 backdrop-blur-md">
+      <div className="sticky top-5 z-20 -mb-[72px] flex justify-end pointer-events-none">
+        <button
+          onClick={() => setIsProfileOpen(true)}
+          className="mt-2 w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 active:scale-95 transition-transform pointer-events-auto"
+        >
+          <img
+            src="https://images.unsplash.com/photo-1762708590808-c453c0e4fb0f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMG1hbiUyMHBvcnRyYWl0JTIwc21pbGluZyUyMGNhc3VhbHxlbnwxfHx8fDE3NzUyNjkzMzl8MA&ixlib=rb-4.1.0&q=80&w=1080"
+            alt="Profile"
+            className="w-full h-full object-cover"
+          />
+        </button>
+      </div>
+
+      <div className="flex justify-between items-start pt-2 pr-14">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             Guten Morgen, Ben! <span className="text-2xl">👋</span>
@@ -219,16 +232,6 @@ export function HomeView() {
             {selectedDay.dayLabel}, {selectedDay.date}. {selectedDay.monthLabel}
           </p>
         </div>
-        <button
-          onClick={() => setIsProfileOpen(true)}
-          className="w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 active:scale-95 transition-transform"
-        >
-          <img
-            src="https://images.unsplash.com/photo-1762708590808-c453c0e4fb0f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMG1hbiUyMHBvcnRyYWl0JTIwc21pbGluZyUyMGNhc3VhbHxlbnwxfHx8fDE3NzUyNjkzMzl8MA&ixlib=rb-4.1.0&q=80&w=1080"
-            alt="Profile"
-            className="w-full h-full object-cover"
-          />
-        </button>
       </div>
 
       <div className="grid grid-cols-4 gap-2">
