@@ -22,7 +22,7 @@ export function ReviewView() {
         onProfileClick={() => setIsProfileOpen(true)}
       />
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-[112px] pb-[112px]">
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-[112px] pb-[96px]">
         <div className="mt-4">
           {/* Subtitle */}
           <h2 className="text-[11px] font-bold text-gray-900 uppercase tracking-widest mb-1.5">

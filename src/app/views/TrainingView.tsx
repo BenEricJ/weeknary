@@ -96,7 +96,7 @@ export function TrainingView() {
       />
 
       {/* CONTENT AREA */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-[112px] pb-[112px] flex flex-col">
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-[112px] pb-[96px] flex flex-col">
         {/* MAIN TABS NAVIGATION */}
         <div className="w-full bg-[#EBEAE4] p-1 rounded-xl flex shrink-0 mb-5">
           {["Plan", "Workouts", "Fortschritt"].map(tab => (

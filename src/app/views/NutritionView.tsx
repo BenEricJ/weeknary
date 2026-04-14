@@ -173,7 +173,7 @@ export function NutritionView() {
         onProfileClick={() => setIsProfileOpen(true)}
       />
 
-      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[104px]">
+      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[88px]">
         <div className="space-y-6">
           <WeekCalendar
             days={weekDays}

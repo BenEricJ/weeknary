@@ -368,7 +368,7 @@ export function HomeView() {
         onProfileClick={() => setIsProfileOpen(true)}
       />
 
-      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[104px] flex flex-col gap-5">
+      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[88px] flex flex-col gap-5">
       <div className="grid grid-cols-4 gap-2">
         <button
           onClick={() => navigate("/app/review")}

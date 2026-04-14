@@ -34,7 +34,7 @@ export function SleepView() {
         onProfileClick={() => setIsProfileOpen(true)}
       />
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-[112px] pb-[104px] flex flex-col gap-6">
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-[112px] pb-[88px] flex flex-col gap-6">
         {/* Tabs */}
         <div className="w-full bg-[#EAECE5] p-1 rounded-xl flex shrink-0">
           {["Überblick", "Analyse", "Trends"].map(tab => (

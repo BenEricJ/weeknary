@@ -396,7 +396,7 @@ export function WeekView() {
         onProfileClick={() => setIsProfileOpen(true)}
       />
 
-      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[104px] flex flex-col gap-5">
+      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[88px] flex flex-col gap-5">
       <div className="bg-[#ECE9E1] rounded-[16px] p-1 flex">
         <button
           onClick={() => setViewMode("day")}
