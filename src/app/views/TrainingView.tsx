@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Dumbbell, Link2, Activity, Flower, CircleDot, Zap, MapIcon } from "lucide-react";
 import { WorkoutDetailDrawer } from "../components/WorkoutDetailDrawer";
-import { ProfileAvatarButton } from "../components/ProfileAvatarButton";
+import { AppTabHeader } from "../components/AppTabHeader";
 import { UserProfileDrawer } from "../components/UserProfileDrawer";
 import {
   getDefaultTrainingDate,
@@ -81,30 +81,22 @@ export function TrainingView() {
     <div className="h-full w-full bg-[#FAF9F6] flex flex-col relative overflow-hidden">
       
       {/* HEADER */}
-      <div className="relative px-6 pt-6 pb-4">
-        <ProfileAvatarButton
-          onClick={() => setIsProfileOpen(true)}
-          className="absolute right-6 top-8"
-        />
-
-        <div className="flex justify-between items-start pt-2 pr-14">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Dumbbell size={24} className="text-[#4A634A]" />
-              Training
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">
-              {selectedTrainingDay.dayLabel}, {selectedTrainingDay.dayDate}.{" "}
-              {selectedTrainingDay.monthLabel}
-              {" · "}
-              {selectedTrainingDay.workoutIds.length} Einheiten geplant
-            </p>
-          </div>
-        </div>
-      </div>
+      <AppTabHeader
+        icon={Dumbbell}
+        title="Training"
+        subtitle={
+          <>
+            {selectedTrainingDay.dayLabel}, {selectedTrainingDay.dayDate}.{" "}
+            {selectedTrainingDay.monthLabel}
+            {" · "}
+            {selectedTrainingDay.workoutIds.length} Einheiten geplant
+          </>
+        }
+        onProfileClick={() => setIsProfileOpen(true)}
+      />
 
       {/* CONTENT AREA */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pb-24 flex flex-col">
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-[112px] pb-[112px] flex flex-col">
         {/* MAIN TABS NAVIGATION */}
         <div className="w-full bg-[#EBEAE4] p-1 rounded-xl flex shrink-0 mb-5">
           {["Plan", "Workouts", "Fortschritt"].map(tab => (

@@ -61,7 +61,7 @@ export function CreateHubView() {
 
       {/* Footer Actions */}
       {step > 1 && step < 4 && (
-        <div className="absolute bottom-6 left-6 right-6 z-20 flex flex-col gap-3">
+        <div className="absolute bottom-[104px] left-6 right-6 z-20 flex flex-col gap-3">
           <button
             onClick={handleNext}
             disabled={isGenerating}
@@ -90,7 +90,7 @@ export function CreateHubView() {
       )}
 
       {step === 4 && (
-        <div className="absolute bottom-6 left-6 right-6 z-20 flex gap-3">
+        <div className="absolute bottom-[104px] left-6 right-6 z-20 flex gap-3">
           <button className="flex-1 h-14 bg-gray-100 text-gray-700 rounded-full font-semibold text-lg flex items-center justify-center hover:bg-gray-200 transition-all">
             Anpassen
           </button>

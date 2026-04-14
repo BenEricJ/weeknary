@@ -96,7 +96,7 @@ export function ProfileView() {
       </div>
 
       {/* Floating Action Button */}
-      <div className="absolute bottom-6 left-6 right-6 z-20 pointer-events-none">
+      <div className="absolute bottom-[104px] left-6 right-6 z-20 pointer-events-none">
         <button
           onClick={() => navigate("/app/create")}
           className="w-full h-14 bg-[#5E7A5E] text-white rounded-full font-semibold text-base flex items-center justify-center shadow-xl hover:bg-[#4D654D] hover:shadow-2xl active:scale-98 transition-all pointer-events-auto"

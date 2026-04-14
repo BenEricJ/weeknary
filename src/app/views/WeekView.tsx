@@ -13,7 +13,7 @@ import {
   type WeekEventDetailItem,
 } from "../components/WeekEventDetailDrawer";
 import { WorkoutDetailDrawer } from "../components/WorkoutDetailDrawer";
-import { ProfileAvatarButton } from "../components/ProfileAvatarButton";
+import { AppTabHeader } from "../components/AppTabHeader";
 import { UserProfileDrawer } from "../components/UserProfileDrawer";
 import { WeekCalendar } from "../components/WeekCalendar";
 import { DayScheduleSection } from "../components/schedule/DayScheduleSection";
@@ -382,29 +382,21 @@ export function WeekView() {
   );
 
   return (
-    <div className="h-full w-full bg-[#FAF9F6] flex flex-col overflow-hidden">
-      <div className="relative px-6 pt-6 pb-4">
-        <ProfileAvatarButton
-          onClick={() => setIsProfileOpen(true)}
-          className="absolute right-6 top-8 w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 active:scale-95 transition-transform"
-        />
+    <div className="relative h-full w-full bg-[#FAF9F6] flex flex-col overflow-hidden">
+      <AppTabHeader
+        icon={CalendarDays}
+        title="Woche"
+        subtitle={
+          <>
+            {selectedDay.dayLabel}, {selectedDay.date}. {selectedDay.monthLabel}
+            {" · "}
+            {selectedDay.events.length} Blöcke geplant
+          </>
+        }
+        onProfileClick={() => setIsProfileOpen(true)}
+      />
 
-        <div className="flex justify-between items-start pt-2 pr-14">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <CalendarDays size={24} className="text-[#4A634A]" />
-              Woche
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">
-              {selectedDay.dayLabel}, {selectedDay.date}. {selectedDay.monthLabel}
-              {" · "}
-              {selectedDay.events.length} Blöcke geplant
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pb-2 flex flex-col gap-5">
+      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[104px] flex flex-col gap-5">
       <div className="bg-[#ECE9E1] rounded-[16px] p-1 flex">
         <button
           onClick={() => setViewMode("day")}

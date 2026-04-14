@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { NutritionDayDetailDrawer } from "../components/NutritionDayDetailDrawer";
 import { NutritionMealDetailDrawer } from "../components/NutritionMealDetailDrawer";
-import { ProfileAvatarButton } from "../components/ProfileAvatarButton";
+import { AppTabHeader } from "../components/AppTabHeader";
 import { UserProfileDrawer } from "../components/UserProfileDrawer";
 import { WeekCalendar } from "../components/WeekCalendar";
 import {
@@ -159,29 +159,21 @@ export function NutritionView() {
   const targetProteinPerSlot = Math.round(selectedDay.targets.proteinTarget / plannedMealCount);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-[#FAF9F6]">
-      <div className="relative px-6 pt-6 pb-4">
-        <ProfileAvatarButton
-          onClick={() => setIsProfileOpen(true)}
-          className="absolute right-6 top-8"
-        />
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#FAF9F6]">
+      <AppTabHeader
+        icon={UtensilsCrossed}
+        title="Ernährung"
+        subtitle={
+          <>
+            {selectedDay.dayLabel}, {selectedDay.date}. {selectedDay.monthLabel}
+            {" · "}
+            {plannedMacros.kcal} kcal geplant
+          </>
+        }
+        onProfileClick={() => setIsProfileOpen(true)}
+      />
 
-        <div className="flex justify-between items-start pt-2 pr-14">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <UtensilsCrossed size={24} className="text-[#4A634A]" />
-              Ernährung
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">
-              {selectedDay.dayLabel}, {selectedDay.date}. {selectedDay.monthLabel}
-              {" · "}
-              {plannedMacros.kcal} kcal geplant
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pb-8">
+      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[104px]">
         <div className="space-y-6">
           <WeekCalendar
             days={weekDays}

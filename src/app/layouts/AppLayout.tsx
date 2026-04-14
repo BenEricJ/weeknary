@@ -18,13 +18,13 @@ export function AppLayout() {
   // In a real app we'd have these routes, but here we just focus on Home and Create Hub.
   
   return (
-    <div className="h-full flex flex-col w-full bg-[#FAF9F6]">
-      <main className="flex-1 overflow-y-auto min-h-0">
+    <div className="relative h-full w-full overflow-hidden bg-[#FAF9F6]">
+      <main className="h-full min-h-0 overflow-hidden">
         <Outlet />
       </main>
       
       {/* Bottom Navigation */}
-      <nav className="h-[80px] bg-[#FAF9F6] border-t border-gray-200/50 flex justify-between items-center px-4 pb-4 pt-2 shrink-0 z-10">
+      <nav className="absolute inset-x-0 bottom-0 z-20 flex h-[80px] items-center justify-between bg-[#FAF9F6]/75 px-4 pb-4 pt-2 backdrop-blur-md">
         {navItems.map((item, idx) => {
           const Icon = item.icon;
           const isActive = location.pathname.startsWith(item.path);
