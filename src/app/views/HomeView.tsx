@@ -14,7 +14,10 @@ import {
   type EventEditDraft,
   type EventEditSession,
 } from "../components/EventEditDrawer";
-import { WorkoutDetailDrawer } from "../components/WorkoutDetailDrawer";
+import {
+  WorkoutDetailDrawer,
+  WORKOUT_DATA,
+} from "../components/WorkoutDetailDrawer";
 import { FocusDetailDrawer } from "../components/FocusDetailDrawer";
 import { WeekCalendar } from "../components/WeekCalendar";
 import { UserProfileDrawer } from "../components/UserProfileDrawer";
@@ -25,6 +28,13 @@ import {
 } from "../components/WeekEventDetailDrawer";
 import { DayScheduleSection } from "../components/schedule/DayScheduleSection";
 import { FOCUS_STEPS } from "../data/focusSteps";
+import {
+  NUTRITION_PLAN,
+  getDayByDate,
+  getMealById,
+  type MealSlotType,
+  type NutritionDay,
+} from "../data/nutritionPlan";
 import {
   CATEGORY_META,
   WEEK_PLAN,
@@ -38,27 +48,129 @@ import {
   type ScheduleEntry,
 } from "../data/weekPlan";
 
+const EATEN_SLOT_CUTOFF_MINUTES: Record<MealSlotType, number> =
+  {
+    breakfast: 10 * 60,
+    lunch: 14 * 60,
+    snack: 17 * 60,
+    dinner: 21 * 60,
+  };
+
+function getWorkoutKcal(workoutId: string) {
+  const kcalStat = WORKOUT_DATA[workoutId]?.statsBar.find(
+    (stat) => stat.val.toLowerCase().includes("kcal"),
+  );
+  const kcalValue = kcalStat?.val.match(/\d+/g)?.join("");
+
+  return kcalValue ? Number(kcalValue) : 0;
+}
+
+function getBurnedWorkoutKcal(day: DayPlan, now: Date) {
+  const dayDate = getDayDate(day);
+  const todayStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const isPastDay = dayDate < todayStart;
+  const isToday = isSameDay(dayDate, now);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return day.events.reduce((total, event) => {
+    if (!event.workoutId) {
+      return total;
+    }
+
+    const hasEnded = toMinutes(event.end) <= currentMinutes;
+    if (!isPastDay && (!isToday || !hasEnded)) {
+      return total;
+    }
+
+    return total + getWorkoutKcal(event.workoutId);
+  }, 0);
+}
+
+function getExternalMealKcalEstimate() {
+  const rangeValues =
+    NUTRITION_PLAN.externalMealGuidance.kcalRange
+      .match(/\d+/g)
+      ?.map(Number);
+
+  if (!rangeValues?.length) {
+    return 0;
+  }
+
+  if (rangeValues.length === 1) {
+    return rangeValues[0];
+  }
+
+  return Math.round((rangeValues[0] + rangeValues[1]) / 2);
+}
+
+function getNutritionDayDate(day: NutritionDay) {
+  const [year, month, date] = day.isoDate
+    .split("-")
+    .map(Number);
+  return new Date(year, month - 1, date);
+}
+
+function getEatenKcalForDay(day: NutritionDay, now: Date) {
+  const dayDate = getNutritionDayDate(day);
+  const todayStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const isPastDay = dayDate < todayStart;
+  const isToday = isSameDay(dayDate, now);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return day.meals.reduce((total, slot) => {
+    const cutoffMinutes = EATEN_SLOT_CUTOFF_MINUTES[slot.slot];
+    if (
+      !isPastDay &&
+      (!isToday || currentMinutes < cutoffMinutes)
+    ) {
+      return total;
+    }
+
+    if (slot.isExternal) {
+      return total + getExternalMealKcalEstimate();
+    }
+
+    const meal = getMealById(NUTRITION_PLAN, slot.mealId);
+    return total + (meal?.nutrition?.kcal ?? 0);
+  }, 0);
+}
+
 export function HomeView() {
   const navigate = useNavigate();
   const [weekPlan, setWeekPlan] = useState(() => WEEK_PLAN);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
-  const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
+  const [selectedWorkout, setSelectedWorkout] = useState<
+    string | null
+  >(null);
   const [selectedEventDetail, setSelectedEventDetail] =
     useState<WeekEventDetailItem | null>(null);
   const [editingEvent, setEditingEvent] =
     useState<EventEditSession | null>(null);
-  const [openSwipeEventId, setOpenSwipeEventId] =
-    useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<number>(() => {
-    const todayPlan = WEEK_PLAN.find((day) =>
-      isSameDay(getDayDate(day), new Date()),
-    );
-    return todayPlan?.date ?? WEEK_PLAN[0].date;
-  });
+  const [openSwipeEventId, setOpenSwipeEventId] = useState<
+    string | null
+  >(null);
+  const [selectedDate, setSelectedDate] = useState<number>(
+    () => {
+      const todayPlan = WEEK_PLAN.find((day) =>
+        isSameDay(getDayDate(day), new Date()),
+      );
+      return todayPlan?.date ?? WEEK_PLAN[0].date;
+    },
+  );
   const [now, setNow] = useState(() => new Date());
 
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({
+  const [checkedItems, setCheckedItems] = useState<
+    Record<string, boolean>
+  >({
     s1: true,
   });
 
@@ -67,8 +179,11 @@ export function HomeView() {
   };
 
   const progressPercent = useMemo(() => {
-    const completedCount = Object.values(checkedItems).filter(Boolean).length;
-    return Math.round((completedCount / FOCUS_STEPS.length) * 100);
+    const completedCount =
+      Object.values(checkedItems).filter(Boolean).length;
+    return Math.round(
+      (completedCount / FOCUS_STEPS.length) * 100,
+    );
   }, [checkedItems]);
 
   const nextStep = useMemo(() => {
@@ -87,12 +202,26 @@ export function HomeView() {
   }, []);
 
   const selectedDay = useMemo(
-    () => weekPlan.find((day) => day.date === selectedDate) ?? weekPlan[0],
+    () =>
+      weekPlan.find((day) => day.date === selectedDate) ??
+      weekPlan[0],
     [selectedDate, weekPlan],
   );
   const isSelectedDayToday = useMemo(
     () => isSameDay(getDayDate(selectedDay), now),
     [selectedDay, now],
+  );
+  const burnedWorkoutKcal = useMemo(
+    () => getBurnedWorkoutKcal(selectedDay, now),
+    [selectedDay, now],
+  );
+  const selectedNutritionDay = useMemo(
+    () => getDayByDate(NUTRITION_PLAN, selectedDate),
+    [selectedDate],
+  );
+  const eatenKcal = useMemo(
+    () => getEatenKcalForDay(selectedNutritionDay, now),
+    [selectedNutritionDay, now],
   );
 
   const weekDays = useMemo(
@@ -117,7 +246,10 @@ export function HomeView() {
     setOpenSwipeEventId(null);
   }, [selectedDate]);
 
-  const openScheduleEntry = (day: DayPlan, entry: ScheduleEntry) => {
+  const openScheduleEntry = (
+    day: DayPlan,
+    entry: ScheduleEntry,
+  ) => {
     setOpenSwipeEventId(null);
 
     if (entry.workoutId) {
@@ -128,9 +260,16 @@ export function HomeView() {
     setSelectedEventDetail(buildEventDetail(day, entry));
   };
 
-  const openEventEditor = (dayDate: number, eventId: string) => {
-    const day = weekPlan.find((entry) => entry.date === dayDate);
-    const event = day?.events.find((entry) => entry.id === eventId);
+  const openEventEditor = (
+    dayDate: number,
+    eventId: string,
+  ) => {
+    const day = weekPlan.find(
+      (entry) => entry.date === dayDate,
+    );
+    const event = day?.events.find(
+      (entry) => entry.id === eventId,
+    );
 
     if (!day || !event) {
       return;
@@ -173,7 +312,8 @@ export function HomeView() {
                 )
                 .sort(
                   (left, right) =>
-                    toMinutes(left.start) - toMinutes(right.start),
+                    toMinutes(left.start) -
+                    toMinutes(right.start),
                 ),
             }
           : day,
@@ -189,7 +329,9 @@ export function HomeView() {
         day.date === dayDate
           ? {
               ...day,
-              events: day.events.filter((event) => event.id !== eventId),
+              events: day.events.filter(
+                (event) => event.id !== eventId,
+              ),
             }
           : day,
       ),
@@ -226,10 +368,12 @@ export function HomeView() {
       <div className="flex justify-between items-start pt-2 pr-14">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            Guten Morgen, Ben! <span className="text-2xl">👋</span>
+            Guten Morgen, Ben!{" "}
+            <span className="text-2xl">👋</span>
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            {selectedDay.dayLabel}, {selectedDay.date}. {selectedDay.monthLabel}
+            {selectedDay.dayLabel}, {selectedDay.date}.{" "}
+            {selectedDay.monthLabel}
           </p>
         </div>
       </div>
@@ -240,7 +384,11 @@ export function HomeView() {
           className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
         >
           <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
-            <Zap size={18} strokeWidth={2.5} className="text-[#4A634A]" />
+            <Zap
+              size={18}
+              strokeWidth={2.5}
+              className="text-[#4A634A]"
+            />
           </div>
           <div className="flex flex-col min-w-0 leading-tight">
             <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
@@ -256,7 +404,11 @@ export function HomeView() {
           className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
         >
           <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
-            <Moon size={18} strokeWidth={2.5} className="text-[#6B5B95]" />
+            <Moon
+              size={18}
+              strokeWidth={2.5}
+              className="text-[#6B5B95]"
+            />
           </div>
           <div className="flex flex-col min-w-0 leading-tight">
             <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
@@ -272,7 +424,7 @@ export function HomeView() {
           className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
         >
           <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
-            <Footprints
+            <Flame
               size={18}
               strokeWidth={2.5}
               className="text-[#D37F36]"
@@ -280,10 +432,10 @@ export function HomeView() {
           </div>
           <div className="flex flex-col min-w-0 leading-tight">
             <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
-              90min.
+              {burnedWorkoutKcal.toLocaleString("de-DE")} kcal
             </span>
-            <span className="block text-[8px] font-semibold truncate text-[#D37F36]">
-              Geplant
+            <span className="block text-[8px] font-semibold truncate text-[#4a634a]">
+              Gut
             </span>
           </div>
         </button>
@@ -299,8 +451,11 @@ export function HomeView() {
             />
           </div>
           <div className="flex flex-col min-w-0 leading-tight">
-            <span className="text-[11px] font-bold tracking-tight truncate text-[#4A634A]">
-              Im Plan
+            <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
+              {eatenKcal.toLocaleString("de-DE")} kcal
+            </span>
+            <span className="block text-[8px] font-semibold truncate text-[#4A634A]">
+              Gut
             </span>
           </div>
         </button>
@@ -322,12 +477,20 @@ export function HomeView() {
       />
 
       <DayScheduleSection
-        title={isSelectedDayToday ? "Heute" : selectedDay.dayLabel}
+        title={
+          isSelectedDayToday ? "Heute" : selectedDay.dayLabel
+        }
         day={{ ...selectedDay, allDayEvents: [] }}
         categoryMeta={CATEGORY_META}
-        onOpen={(entry) => openScheduleEntry(selectedDay, entry)}
-        onEdit={(eventId) => openEventEditor(selectedDay.date, eventId)}
-        onDelete={(eventId) => deleteEvent(selectedDay.date, eventId)}
+        onOpen={(entry) =>
+          openScheduleEntry(selectedDay, entry)
+        }
+        onEdit={(eventId) =>
+          openEventEditor(selectedDay.date, eventId)
+        }
+        onDelete={(eventId) =>
+          deleteEvent(selectedDay.date, eventId)
+        }
         openSwipeEventId={openSwipeEventId}
         onActionsOpenChange={setOpenSwipeEventId}
         maxItems={3}
@@ -401,7 +564,10 @@ export function HomeView() {
               aria-label="Ziele dieser Woche öffnen"
             >
               <div className="flex items-center gap-1 text-gray-700 font-bold text-[8px] uppercase tracking-wide">
-                <ShieldCheck size={12} className="text-[#4A634A]" />
+                <ShieldCheck
+                  size={12}
+                  className="text-[#4A634A]"
+                />
                 <span className="truncate">Ziele</span>
               </div>
               <span className="font-bold text-[13px] text-gray-900 leading-none">
@@ -418,7 +584,10 @@ export function HomeView() {
               aria-label="Training dieser Woche öffnen"
             >
               <div className="flex items-center gap-1 text-gray-700 font-bold text-[8px] uppercase tracking-wide">
-                <Footprints size={12} className="text-[#D37F36]" />
+                <Footprints
+                  size={12}
+                  className="text-[#D37F36]"
+                />
                 <span className="truncate">Training</span>
               </div>
               <span className="font-bold text-[13px] text-gray-900 leading-none">
@@ -435,7 +604,10 @@ export function HomeView() {
               aria-label="Plan-Review dieser Woche öffnen"
             >
               <div className="flex items-center gap-1 text-gray-700 font-bold text-[8px] uppercase tracking-wide">
-                <ShieldCheck size={12} className="text-[#4A634A]" />
+                <ShieldCheck
+                  size={12}
+                  className="text-[#4A634A]"
+                />
                 <span className="truncate">Plan</span>
               </div>
               <span className="font-bold text-[13px] text-gray-900 leading-none">
@@ -479,7 +651,10 @@ export function HomeView() {
         checkedItems={checkedItems}
         onToggleStep={toggleFocusStep}
       />
-      <UserProfileDrawer isOpen={isProfileOpen} onClose={setIsProfileOpen} />
+      <UserProfileDrawer
+        isOpen={isProfileOpen}
+        onClose={setIsProfileOpen}
+      />
     </div>
   );
 }
