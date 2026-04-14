@@ -382,7 +382,7 @@ export function WeekView() {
 
   return (
     <div className="h-full w-full bg-[#FAF9F6] p-5 pb-2 overflow-y-auto hide-scrollbar flex flex-col gap-5">
-      <div className="flex justify-between items-start pt-2">
+      <div className="sticky top-0 z-20 -mx-5 px-5 pb-3 flex justify-between items-start pt-2 bg-[#FAF9F6]/95 backdrop-blur-md">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <CalendarDays size={24} className="text-[#4A634A]" />

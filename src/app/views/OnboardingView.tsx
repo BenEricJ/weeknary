@@ -18,12 +18,12 @@ export function OnboardingView() {
   };
 
   return (
-    <div className="h-full w-full bg-[#FAF9F6] flex flex-col justify-between">
+    <div className="relative h-full w-full overflow-hidden bg-[#FAF9F6] flex flex-col justify-between">
       {step === 1 && <Step1 />}
       {step === 2 && <Step2 />}
       {step === 3 && <Step3 />}
 
-      <div className="px-6 pb-10 flex flex-col items-center gap-6 z-10">
+      <div className="mt-auto px-6 pb-10 flex flex-col items-center gap-6 z-10">
         <button
           onClick={handleNext}
           className="w-full h-14 bg-[#5E7A5E] text-white rounded-full font-semibold text-lg flex items-center justify-center hover:bg-[#4D654D] transition-colors"
@@ -48,13 +48,13 @@ export function OnboardingView() {
 
 function Step1() {
   return (
-    <div className="relative flex-1 w-full h-full">
+    <div className="absolute inset-0 h-full w-full">
       <img
         src="https://images.unsplash.com/photo-1762385653076-2f0c1ec4aaa7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBtb3VudGFpbiUyMHNpdHRpbmclMjBiYWNrfGVufDF8fHx8MTc3NTM3MDQ1MHww&ixlib=rb-4.1.0&q=80&w=1080"
         alt="Mountain view"
-        className="absolute inset-0 w-full h-full object-cover rounded-b-[40px]"
+        className="absolute inset-0 h-full w-full object-cover"
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/40 to-black/90 rounded-b-[40px]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/40 to-black/90" />
       
       <div className="relative z-10 flex flex-col items-center pt-12 h-full">
         <div className="flex items-center gap-2 mb-auto">
@@ -62,7 +62,7 @@ function Step1() {
           <span className="text-white font-semibold text-xl tracking-tight">Weeknary</span>
         </div>
 
-        <div className="px-8 pb-10 w-full text-white mt-auto">
+        <div className="px-8 pb-40 w-full text-white mt-auto">
           <h1 className="text-4xl font-bold mb-4 leading-tight">
             Deine Woche.<br />In Balance.
           </h1>

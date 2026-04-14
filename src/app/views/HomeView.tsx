@@ -210,7 +210,7 @@ export function HomeView() {
 
   return (
     <div className="h-full w-full overflow-y-auto hide-scrollbar bg-[#FAF9F6] p-5 pb-2 flex flex-col gap-5">
-      <div className="flex justify-between items-start pt-2">
+      <div className="sticky top-0 z-20 -mx-5 px-5 pb-3 flex justify-between items-start pt-2 bg-[#FAF9F6]/95 backdrop-blur-md">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             Guten Morgen, Ben! <span className="text-2xl">👋</span>
