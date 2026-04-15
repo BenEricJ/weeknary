@@ -96,6 +96,8 @@ export function NutritionView() {
   const [selectedSlotType, setSelectedSlotType] = useState<MealSlotType | null>(null);
   const [selectedTopStat, setSelectedTopStat] = useState<TopStatDetails | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isShoppingOpen, setIsShoppingOpen] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
 
   const selectedDay = useMemo(
     () => getDayByDate(NUTRITION_PLAN, selectedDate),
@@ -141,10 +143,17 @@ export function NutritionView() {
   );
   const basisBreakdownLines = useMemo(
     () =>
-      selectedDay.meals.flatMap((slot) => {
+      [
+        `Planwert inklusive externer Annahmen: ${selectedDay.plannedKcal} kcal und ${selectedDay.plannedProtein} g Protein.`,
+        `Basis ${selectedDay.kcalBasis} kcal + Training ${selectedDay.kcalTrainingPlus} kcal. ${selectedDay.hint}.`,
+        ...selectedDay.meals.flatMap((slot) => {
         const meal = getMealById(NUTRITION_PLAN, slot.mealId);
 
-        if (slot.isExternal || !meal?.nutrition) {
+        if (slot.isExternal) {
+          return [`${getMealSlotLabel(slot.slot)}: Externes Meal (${NUTRITION_PLAN.externalMealGuidance.kcalRange}, ${NUTRITION_PLAN.externalMealGuidance.proteinRange})`];
+        }
+
+        if (!meal?.nutrition) {
           return [];
         }
 
@@ -152,6 +161,7 @@ export function NutritionView() {
           `${getMealSlotLabel(slot.slot)}: ${meal.name} (${meal.nutrition.kcal} kcal, ${meal.nutrition.protein} g Protein)`,
         ];
       }),
+    ],
     [selectedDay],
   );
   const plannedMealCount = selectedDay.meals.length;
@@ -244,12 +254,12 @@ export function NutritionView() {
                 label="Basis"
                 value={`${plannedMacros.kcal}`}
                 sublabel={`${plannedMacros.protein} g Protein`}
-                detailTitle="Im Basiswert enthalten"
+                detailTitle="Im Planwert enthalten"
                 detailLines={basisBreakdownLines}
                 detailFooter={
                   externalMealCount > 0
-                    ? `Externe Meals sind hier nicht eingerechnet. Aktuell offen: ${externalMealCount} Slot.`
-                    : "Die Basis deckt alle Planmeals des Tages ab."
+                    ? `${externalMealCount} externer Slot ist als Planannahme eingerechnet.`
+                    : "Alle vier Slots sind als fixe Planmeals hinterlegt."
                 }
                 onOpenDetails={setSelectedTopStat}
               />
@@ -402,6 +412,100 @@ export function NutritionView() {
                 </p>
               </div>
             </div>
+          </section>
+
+          <section className="rounded-[18px] border border-[#E8E6DD] bg-white p-4 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setIsShoppingOpen((open) => !open)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <div>
+                <p className="text-[13px] font-bold text-gray-900">Einkauf & Budget</p>
+                <p className="mt-1 text-[12px] leading-snug text-gray-600">
+                  Einkauf {formatEuro(NUTRITION_PLAN.budget.shoppingCost)} EUR, Bulk/Pantry {formatEuro(NUTRITION_PLAN.budget.pantryShare)} EUR.
+                </p>
+              </div>
+              <span className="rounded-[8px] bg-[#F7F6F1] px-2.5 py-1 text-[11px] font-bold text-gray-600">
+                {isShoppingOpen ? "Weniger" : "Mehr"}
+              </span>
+            </button>
+
+            {isShoppingOpen ? (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-3 gap-2">
+                  <MiniBudgetMetric label="Einkauf" value={formatEuro(NUTRITION_PLAN.budget.shoppingCost)} />
+                  <MiniBudgetMetric label="Pantry" value={formatEuro(NUTRITION_PLAN.budget.pantryShare)} />
+                  <MiniBudgetMetric label="Puffer" value={formatEuro(NUTRITION_PLAN.budget.budgetHardCap - NUTRITION_PLAN.budget.totalCost)} />
+                </div>
+
+                {NUTRITION_PLAN.shoppingAndReview.stores.map((store) => (
+                  <div key={store.store} className="rounded-[16px] bg-[#F8F7F2] p-3">
+                    <p className="text-[12px] font-bold text-gray-900">{store.store}</p>
+                    <div className="mt-2 space-y-2">
+                      {store.items.map((item) => (
+                        <div key={`${store.store}-${item.product}`} className="flex items-start justify-between gap-3 text-[11px]">
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-800">{item.product}</p>
+                            <p className="mt-0.5 leading-snug text-gray-500">{item.plannedAmount} | {item.use.join(", ")}</p>
+                          </div>
+                          <span className="shrink-0 font-bold text-gray-700">{formatEuro(item.weeklyCost)} EUR</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <InfoList title="Bulk-Pantry-Anteile" items={NUTRITION_PLAN.shoppingAndReview.bulkPantryDetails.map((item) => `${item.product}: ${item.plannedAmount}, ${formatEuro(item.costShare)} EUR (${item.priceStatus})`)} />
+                <InfoList title="Kostentreiber" items={NUTRITION_PLAN.shoppingAndReview.costDrivers} />
+                <InfoList title="Alternativen bei Preissprung" items={NUTRITION_PLAN.shoppingAndReview.priceJumpAlternatives} />
+              </div>
+            ) : null}
+          </section>
+
+          <section className="rounded-[18px] border border-[#E8E6DD] bg-white p-4 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setIsReviewOpen((open) => !open)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <div>
+                <p className="text-[13px] font-bold text-gray-900">Naehrstoffreview</p>
+                <p className="mt-1 text-[12px] leading-snug text-gray-600">
+                  Protein gedeckt, Calcium/Jod bewusst abgesichert.
+                </p>
+              </div>
+              <span className="rounded-[8px] bg-[#F7F6F1] px-2.5 py-1 text-[11px] font-bold text-gray-600">
+                {isReviewOpen ? "Weniger" : "Mehr"}
+              </span>
+            </button>
+
+            {isReviewOpen ? (
+              <div className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  {NUTRITION_PLAN.shoppingAndReview.nutrients.map((row) => (
+                    <div key={row.nutrient} className="rounded-[16px] bg-[#F8F7F2] p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-bold text-gray-900">{row.nutrient}</p>
+                          <p className="mt-0.5 text-[11px] leading-snug text-gray-500">{row.target} | {row.planValue}</p>
+                        </div>
+                        <span className="shrink-0 rounded-[8px] bg-white px-2 py-1 text-[10px] font-bold text-[#4A634A]">
+                          {row.rating}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[11px] leading-snug text-gray-600">
+                        Quellen: {row.mainSources.join(", ")}. {row.correction}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <InfoList title="Staerken" items={NUTRITION_PLAN.shoppingAndReview.review.strengths} />
+                <InfoList title="Luecken & Massnahmen" items={NUTRITION_PLAN.shoppingAndReview.review.gapsAndActions} />
+                <InfoList title="Kritik & Kontrapunkte" items={NUTRITION_PLAN.shoppingAndReview.review.criticismAndCounterpoints} />
+              </div>
+            ) : null}
           </section>
         </div>
       </div>
@@ -564,6 +668,42 @@ function getMealSubtitle(meal: MealRecipe | null) {
     .join(", ");
 
   return `${ingredientsPreview}${meal.ingredients.length > 3 ? " ..." : ""}`;
+}
+
+function MiniBudgetMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-[14px] bg-[#F8F7F2] p-2.5">
+      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">{label}</p>
+      <p className="mt-1 text-[13px] font-bold text-gray-900">{value} EUR</p>
+    </div>
+  );
+}
+
+function InfoList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <div className="rounded-[16px] bg-[#F8F7F2] p-3">
+      <p className="text-[12px] font-bold text-gray-900">{title}</p>
+      <div className="mt-2 space-y-2">
+        {items.map((item) => (
+          <p key={`${title}-${item}`} className="text-[11px] leading-snug text-gray-600">
+            {item}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function formatEuro(value: number) {

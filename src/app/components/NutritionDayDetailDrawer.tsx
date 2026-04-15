@@ -689,7 +689,7 @@ function getEstimatedBreakdownForDay(plan: NutritionPlan, day: NutritionDay): Nu
 }
 
 function getPlannedMacrosForDrawer(plan: NutritionPlan, day: NutritionDay): MacroEstimate {
-  return day.meals.reduce(
+  const recipeTotals = day.meals.reduce(
     (totals, slot) => {
       const meal = getMealById(plan, slot.mealId);
       if (!meal?.nutrition) {
@@ -705,6 +705,12 @@ function getPlannedMacrosForDrawer(plan: NutritionPlan, day: NutritionDay): Macr
     },
     { kcal: 0, protein: 0, carbs: 0, fat: 0 },
   );
+
+  return {
+    ...recipeTotals,
+    kcal: day.plannedKcal,
+    protein: day.plannedProtein,
+  };
 }
 
 function getEstimatedNutritionForSlot(
