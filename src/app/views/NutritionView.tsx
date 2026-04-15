@@ -4,11 +4,13 @@ import {
   AlertTriangle,
   Apple,
   CalendarDays,
+  CheckSquare,
   ChevronLeft,
   Flame,
   Leaf,
   MoreHorizontal,
   MoonStar,
+  Square,
   Sparkles,
   Sun,
   Soup,
@@ -38,6 +40,8 @@ import {
   getWeekDays,
   type MealRecipe,
   type MealSlotType,
+  type ShoppingListItem,
+  type ShoppingStore,
 } from "../data/nutritionPlan";
 
 const SLOT_META: Record<
@@ -96,8 +100,7 @@ export function NutritionView() {
   const [selectedSlotType, setSelectedSlotType] = useState<MealSlotType | null>(null);
   const [selectedTopStat, setSelectedTopStat] = useState<TopStatDetails | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isShoppingOpen, setIsShoppingOpen] = useState(false);
-  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [isWeekInfoOpen, setIsWeekInfoOpen] = useState(false);
 
   const selectedDay = useMemo(
     () => getDayByDate(NUTRITION_PLAN, selectedDate),
@@ -394,13 +397,22 @@ export function NutritionView() {
             </div>
           </section>
 
-          <section className="rounded-[18px] border border-[#E8E6DD] bg-[#F4F2EC] p-4 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setIsWeekInfoOpen(true)}
+            className="w-full rounded-[18px] border border-[#E8E6DD] bg-[#F4F2EC] p-4 text-left shadow-sm transition-colors hover:bg-[#EFEEE7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6A816A]/35 active:scale-[0.99]"
+          >
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-white/80">
                 <Sparkles size={18} className="text-[#4A634A]" />
               </div>
-              <div className="min-w-0">
-                <p className="text-[13px] font-bold text-gray-900">Wocheninfo</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[13px] font-bold text-gray-900">Wocheninfo</p>
+                  <span className="shrink-0 text-[11px] font-bold text-[#4A634A]">
+                    Oeffnen
+                  </span>
+                </div>
                 <p className="mt-1 text-[12px] leading-snug text-gray-600">
                   {NUTRITION_PLAN.week.planLabel}
                 </p>
@@ -412,101 +424,7 @@ export function NutritionView() {
                 </p>
               </div>
             </div>
-          </section>
-
-          <section className="rounded-[18px] border border-[#E8E6DD] bg-white p-4 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setIsShoppingOpen((open) => !open)}
-              className="flex w-full items-center justify-between gap-3 text-left"
-            >
-              <div>
-                <p className="text-[13px] font-bold text-gray-900">Einkauf & Budget</p>
-                <p className="mt-1 text-[12px] leading-snug text-gray-600">
-                  Einkauf {formatEuro(NUTRITION_PLAN.budget.shoppingCost)} EUR, Bulk/Pantry {formatEuro(NUTRITION_PLAN.budget.pantryShare)} EUR.
-                </p>
-              </div>
-              <span className="rounded-[8px] bg-[#F7F6F1] px-2.5 py-1 text-[11px] font-bold text-gray-600">
-                {isShoppingOpen ? "Weniger" : "Mehr"}
-              </span>
-            </button>
-
-            {isShoppingOpen ? (
-              <div className="mt-4 space-y-4">
-                <div className="grid grid-cols-3 gap-2">
-                  <MiniBudgetMetric label="Einkauf" value={formatEuro(NUTRITION_PLAN.budget.shoppingCost)} />
-                  <MiniBudgetMetric label="Pantry" value={formatEuro(NUTRITION_PLAN.budget.pantryShare)} />
-                  <MiniBudgetMetric label="Puffer" value={formatEuro(NUTRITION_PLAN.budget.budgetHardCap - NUTRITION_PLAN.budget.totalCost)} />
-                </div>
-
-                {NUTRITION_PLAN.shoppingAndReview.stores.map((store) => (
-                  <div key={store.store} className="rounded-[16px] bg-[#F8F7F2] p-3">
-                    <p className="text-[12px] font-bold text-gray-900">{store.store}</p>
-                    <div className="mt-2 space-y-2">
-                      {store.items.map((item) => (
-                        <div key={`${store.store}-${item.product}`} className="flex items-start justify-between gap-3 text-[11px]">
-                          <div className="min-w-0">
-                            <p className="font-bold text-gray-800">{item.product}</p>
-                            <p className="mt-0.5 leading-snug text-gray-500">{item.plannedAmount} | {item.use.join(", ")}</p>
-                          </div>
-                          <span className="shrink-0 font-bold text-gray-700">{formatEuro(item.weeklyCost)} EUR</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-
-                <InfoList title="Bulk-Pantry-Anteile" items={NUTRITION_PLAN.shoppingAndReview.bulkPantryDetails.map((item) => `${item.product}: ${item.plannedAmount}, ${formatEuro(item.costShare)} EUR (${item.priceStatus})`)} />
-                <InfoList title="Kostentreiber" items={NUTRITION_PLAN.shoppingAndReview.costDrivers} />
-                <InfoList title="Alternativen bei Preissprung" items={NUTRITION_PLAN.shoppingAndReview.priceJumpAlternatives} />
-              </div>
-            ) : null}
-          </section>
-
-          <section className="rounded-[18px] border border-[#E8E6DD] bg-white p-4 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setIsReviewOpen((open) => !open)}
-              className="flex w-full items-center justify-between gap-3 text-left"
-            >
-              <div>
-                <p className="text-[13px] font-bold text-gray-900">Naehrstoffreview</p>
-                <p className="mt-1 text-[12px] leading-snug text-gray-600">
-                  Protein gedeckt, Calcium/Jod bewusst abgesichert.
-                </p>
-              </div>
-              <span className="rounded-[8px] bg-[#F7F6F1] px-2.5 py-1 text-[11px] font-bold text-gray-600">
-                {isReviewOpen ? "Weniger" : "Mehr"}
-              </span>
-            </button>
-
-            {isReviewOpen ? (
-              <div className="mt-4 space-y-4">
-                <div className="space-y-2">
-                  {NUTRITION_PLAN.shoppingAndReview.nutrients.map((row) => (
-                    <div key={row.nutrient} className="rounded-[16px] bg-[#F8F7F2] p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[12px] font-bold text-gray-900">{row.nutrient}</p>
-                          <p className="mt-0.5 text-[11px] leading-snug text-gray-500">{row.target} | {row.planValue}</p>
-                        </div>
-                        <span className="shrink-0 rounded-[8px] bg-white px-2 py-1 text-[10px] font-bold text-[#4A634A]">
-                          {row.rating}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-[11px] leading-snug text-gray-600">
-                        Quellen: {row.mainSources.join(", ")}. {row.correction}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                <InfoList title="Staerken" items={NUTRITION_PLAN.shoppingAndReview.review.strengths} />
-                <InfoList title="Luecken & Massnahmen" items={NUTRITION_PLAN.shoppingAndReview.review.gapsAndActions} />
-                <InfoList title="Kritik & Kontrapunkte" items={NUTRITION_PLAN.shoppingAndReview.review.criticismAndCounterpoints} />
-              </div>
-            ) : null}
-          </section>
+          </button>
         </div>
       </div>
 
@@ -527,6 +445,10 @@ export function NutritionView() {
       <TopStatDetailDrawer
         stat={selectedTopStat}
         onClose={() => setSelectedTopStat(null)}
+      />
+      <NutritionWeekInfoDrawer
+        open={isWeekInfoOpen}
+        onClose={() => setIsWeekInfoOpen(false)}
       />
       <UserProfileDrawer
         isOpen={isProfileOpen}
@@ -657,6 +579,201 @@ function TopStatDetailDrawer({
   );
 }
 
+function NutritionWeekInfoDrawer({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const shoppingStorageKey = `nutrition-shopping-${NUTRITION_PLAN.week.startIsoDate}-${NUTRITION_PLAN.week.endIsoDate}`;
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const [isShoppingStateReady, setIsShoppingStateReady] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      setIsShoppingStateReady(true);
+      return;
+    }
+
+    try {
+      const storedItems = window.localStorage.getItem(shoppingStorageKey);
+      setCheckedItems(storedItems ? JSON.parse(storedItems) : {});
+    } catch {
+      setCheckedItems({});
+    } finally {
+      setIsShoppingStateReady(true);
+    }
+  }, [shoppingStorageKey]);
+
+  useEffect(() => {
+    if (!isShoppingStateReady || typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(shoppingStorageKey, JSON.stringify(checkedItems));
+  }, [checkedItems, isShoppingStateReady, shoppingStorageKey]);
+
+  const shoppingItems = NUTRITION_PLAN.shoppingAndReview.stores.flatMap((store) =>
+    store.items.map((item) => ({
+      id: getShoppingItemId(store, item),
+      item,
+    })),
+  );
+  const completedCount = shoppingItems.filter(({ id }) => checkedItems[id]).length;
+  const budgetBuffer = NUTRITION_PLAN.budget.budgetHardCap - NUTRITION_PLAN.budget.totalCost;
+
+  const toggleShoppingItem = (id: string) => {
+    setCheckedItems((previous) => ({ ...previous, [id]: !previous[id] }));
+  };
+
+  const resetShoppingList = () => {
+    setCheckedItems({});
+  };
+
+  return (
+    <Drawer open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <DrawerContent className="mx-auto flex h-[92vh] max-w-[390px] flex-col overflow-hidden rounded-t-[24px] border-t-0 bg-[#F5F4EF]">
+        <DrawerDescription className="sr-only">
+          Wocheninformationen mit Einkaufsliste, Budget und Kostenhinweisen.
+        </DrawerDescription>
+
+        <div className="flex items-center justify-between border-b border-[#EBEAE4] bg-white px-4 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1 text-gray-900 transition-colors hover:bg-gray-100"
+            aria-label="Zurueck"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <DrawerTitle className="text-[16px] font-bold text-gray-900">
+            Wocheninfo
+          </DrawerTitle>
+          <div className="w-8" />
+        </div>
+
+        <div className="hide-scrollbar flex-1 overflow-y-auto px-4 pb-5 pt-4">
+          <div className="space-y-5">
+            <section className="rounded-[18px] border border-[#E4E9E4] bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#6A816A]">
+                {NUTRITION_PLAN.week.startIsoDate} bis {NUTRITION_PLAN.week.endIsoDate}
+              </p>
+              <p className="mt-1 text-[16px] font-bold leading-tight text-gray-900">
+                {NUTRITION_PLAN.week.planLabel}
+              </p>
+              <p className="mt-2 text-[12px] leading-snug text-gray-600">
+                {NUTRITION_PLAN.budget.status}
+              </p>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <MiniBudgetMetric label="Gesamt" value={formatEuro(NUTRITION_PLAN.budget.totalCost)} />
+                <MiniBudgetMetric label="Limit" value={formatEuro(NUTRITION_PLAN.budget.budgetHardCap)} />
+                <MiniBudgetMetric label="Einkauf" value={formatEuro(NUTRITION_PLAN.budget.shoppingCost)} />
+                <MiniBudgetMetric label="Puffer" value={formatEuro(budgetBuffer)} />
+              </div>
+              <p className="mt-3 text-[11px] leading-snug text-gray-500">
+                Pantry/Bulk: {formatEuro(NUTRITION_PLAN.budget.pantryShare)} EUR. {NUTRITION_PLAN.budget.note}
+              </p>
+            </section>
+
+            <section className="rounded-[18px] border border-[#E4E9E4] bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[13px] font-bold text-gray-900">Einkaufsliste</p>
+                  <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                    {completedCount} von {shoppingItems.length} Produkten erledigt.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={resetShoppingList}
+                  className="rounded-[8px] bg-[#F7F6F1] px-2.5 py-1.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-[#ECEAE2]"
+                >
+                  Zuruecksetzen
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {NUTRITION_PLAN.shoppingAndReview.stores.map((store) => (
+                  <div key={store.store} className="rounded-[16px] bg-[#F8F7F2] p-3">
+                    <p className="mb-2 text-[12px] font-bold text-gray-900">{store.store}</p>
+                    <div className="space-y-2">
+                      {store.items.map((item) => {
+                        const itemId = getShoppingItemId(store, item);
+                        const isChecked = !!checkedItems[itemId];
+
+                        return (
+                          <button
+                            key={itemId}
+                            type="button"
+                            onClick={() => toggleShoppingItem(itemId)}
+                            className={`flex w-full items-start gap-3 rounded-[14px] p-3 text-left transition-colors active:scale-[0.99] ${
+                              isChecked ? "bg-white/60" : "bg-white"
+                            }`}
+                          >
+                            <div className="mt-0.5">
+                              {isChecked ? (
+                                <CheckSquare size={18} className="text-[#6A816A]" />
+                              ) : (
+                                <Square size={18} className="text-gray-300" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-3">
+                                <p
+                                  className={`text-[12px] font-bold leading-tight ${
+                                    isChecked
+                                      ? "text-gray-400 line-through"
+                                      : "text-gray-900"
+                                  }`}
+                                >
+                                  {item.product}
+                                </p>
+                                <span
+                                  className={`shrink-0 text-[11px] font-bold ${
+                                    isChecked ? "text-gray-400 line-through" : "text-gray-700"
+                                  }`}
+                                >
+                                  {formatEuro(item.weeklyCost)} EUR
+                                </span>
+                              </div>
+                              <p
+                                className={`mt-1 text-[11px] leading-snug ${
+                                  isChecked ? "text-gray-400 line-through" : "text-gray-500"
+                                }`}
+                              >
+                                {item.plannedAmount} | {item.use.join(", ")}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <InfoList
+              title="Bulk-Pantry-Anteile"
+              items={NUTRITION_PLAN.shoppingAndReview.bulkPantryDetails.map(
+                (item) =>
+                  `${item.product}: ${item.plannedAmount}, ${formatEuro(item.costShare)} EUR (${item.priceStatus})`,
+              )}
+            />
+            <InfoList title="Kostentreiber" items={NUTRITION_PLAN.shoppingAndReview.costDrivers} />
+            <InfoList
+              title="Alternativen bei Preissprung"
+              items={NUTRITION_PLAN.shoppingAndReview.priceJumpAlternatives}
+            />
+          </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
 function getMealSubtitle(meal: MealRecipe | null) {
   if (!meal) {
     return "Kein Rezept gefunden.";
@@ -704,6 +821,10 @@ function InfoList({
       </div>
     </div>
   );
+}
+
+function getShoppingItemId(store: ShoppingStore, item: ShoppingListItem) {
+  return `${store.store}::${item.product}::${item.plannedAmount}`;
 }
 
 function formatEuro(value: number) {
