@@ -76,17 +76,21 @@
     "@types/node": "^22.15.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-legacy": "^8.0.1",
+    "@vitejs/plugin-legacy": "6.1.1",
     "@vitejs/plugin-react": "4.7.0",
     "tailwindcss": "4.1.12",
     "typescript": "^6.0.2",
-    "vite": "6.3.5",
+    "vite": "6.4.2",
     "supabase": "^2.92.0",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "1.2.0"
+  },
+  "overrides": {
+    "@rollup/plugin-terser": "1.0.0"
   },
   "pnpm": {
     "overrides": {
-      "vite": "6.3.5"
+      "vite": "6.4.2",
+      "@rollup/plugin-terser": "1.0.0"
     }
   }
 }
