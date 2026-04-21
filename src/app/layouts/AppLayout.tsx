@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
-import { Home, Calendar, Utensils, Dumbbell, Moon, ClipboardCheck } from "lucide-react";
+import { Home, Calendar, Utensils, Dumbbell, Moon, ClipboardCheck, Sparkles } from "lucide-react";
 
 export function AppLayout() {
   const location = useLocation();
@@ -10,6 +10,7 @@ export function AppLayout() {
     { label: "Home", icon: Home, path: "/app/home" },
     { label: "Woche", icon: Calendar, path: "/app/week" }, // Placeholder
     { label: "Ernährung", icon: Utensils, path: "/app/nutrition" }, // Placeholder
+    { label: "Create", icon: Sparkles, path: "/app/create" },
     { label: "Training", icon: Dumbbell, path: "/app/training" }, // Placeholder
     { label: "Schlaf", icon: Moon, path: "/app/sleep" }, // Placeholder
     { label: "Review", icon: ClipboardCheck, path: "/app/review" }, // Placeholder

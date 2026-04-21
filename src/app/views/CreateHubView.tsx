@@ -1,299 +1,654 @@
-import React, { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { ChevronLeft, Check, Sparkles, SwitchCamera, Loader2 } from "lucide-react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  Dumbbell,
+  Loader2,
+  Lock,
+  NotebookPen,
+  Sparkles,
+  Target,
+  UtensilsCrossed,
+  type LucideIcon,
+} from "lucide-react";
+import type {
+  AuthCredentials,
+  PlanBundleActivationMode,
+  PlanBundleGenerationRequest,
+} from "../../application";
+import { useCreateHub } from "../createHub/useCreateHub";
+
+type WizardStep = "setup" | "context" | "preview";
+
+const defaultGoals = [
+  "Proteinreich essen",
+  "Drei Trainingseinheiten einplanen",
+  "Genug Puffer fuer Arbeit und Erholung lassen",
+];
+const defaultConstraints = [
+  "Keine medizinische Beratung",
+  "Meal Prep soll alltagstauglich bleiben",
+  "Training moderat und editierbar planen",
+];
 
 export function CreateHubView() {
   const navigate = useNavigate();
-  // 1 = Start, 2 = Context (Planning), 3 = Summary, 4 = Result (Vorschau)
-  const [step, setStep] = useState(1);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const createHub = useCreateHub();
+  const defaultRange = useMemo(() => getNextWeekRange(), []);
+  const [step, setStep] = useState<WizardStep>("setup");
+  const [startDate, setStartDate] = useState(defaultRange.startDate);
+  const [endDate, setEndDate] = useState(defaultRange.endDate);
+  const [goalsText, setGoalsText] = useState(defaultGoals.join("\n"));
+  const [constraintsText, setConstraintsText] = useState(defaultConstraints.join("\n"));
+  const [userNotes, setUserNotes] = useState(
+    "Plane eine realistische Woche mit klaren Meals, Training und Tagesstruktur.",
+  );
+  const [startingPoint, setStartingPoint] =
+    useState<PlanBundleGenerationRequest["startingPoint"]>("new");
 
-  const handleNext = () => {
-    if (step === 3) {
-      setIsGenerating(true);
-      setTimeout(() => {
-        setIsGenerating(false);
-        setStep(4);
-      }, 1500);
-    } else if (step < 4) {
-      setStep(step + 1);
+  const request = useMemo<PlanBundleGenerationRequest>(
+    () => ({
+      dateRange: { startDate, endDate },
+      timezone: "Europe/Berlin",
+      locale: "de-DE",
+      goals: toLines(goalsText),
+      constraints: toLines(constraintsText),
+      startingPoint,
+      userNotes,
+    }),
+    [constraintsText, endDate, goalsText, startDate, startingPoint, userNotes],
+  );
+
+  const canGenerate =
+    createHub.status !== "generating" &&
+    createHub.status !== "saving" &&
+    createHub.runtimeStatus === "remote-signed-in" &&
+    startDate <= endDate;
+
+  const generate = async () => {
+    const bundle = await createHub.generate(request);
+    if (bundle) {
+      setStep("preview");
     }
   };
 
-  const handleBack = () => {
-    if (step > 1 && step < 4) {
-      setStep(step - 1);
-    } else {
-      navigate(-1);
+  const save = async (mode: PlanBundleActivationMode) => {
+    const result = await createHub.save(mode);
+    if (result) {
+      navigate(mode === "activate" ? "/app/week" : "/app/create");
     }
   };
 
   return (
-    <div className="h-full w-full bg-[#FAF9F6] flex flex-col relative overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-col pt-8 pb-4 z-10 sticky top-0 bg-[#FAF9F6]/90 backdrop-blur-md px-4 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-gray-200/50 transition-colors">
-            <ChevronLeft size={24} className="text-gray-900" />
-          </button>
-          <span className="font-semibold text-lg">{step === 4 ? "Plan Vorschau" : "Create Hub"}</span>
-          <div className="w-10 h-10" /> {/* Spacer */}
-        </div>
-
-        {/* Breadcrumb / Progress */}
-        {step > 1 && step < 4 && (
-          <div className="flex items-center justify-center gap-2 mt-4 text-[11px] font-semibold text-gray-400">
-            <span className={step >= 2 ? "text-[#5E7A5E]" : ""}>1. Setup</span>
-            <ChevronRight size={10} className="text-gray-300" />
-            <span className={step >= 2 ? "text-[#5E7A5E]" : ""}>2. Kontext</span>
-            <ChevronRight size={10} className="text-gray-300" />
-            <span className={step >= 3 ? "text-[#5E7A5E]" : ""}>3. Ausgabe</span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 py-6 pb-28">
-        {step === 1 && <StartStep onSelect={handleNext} />}
-        {step === 2 && <PlanningStep />}
-        {step === 3 && <SummaryStep />}
-        {step === 4 && <ResultStep />}
-      </div>
-
-      {/* Footer Actions */}
-      {step > 1 && step < 4 && (
-        <div className="absolute bottom-[88px] left-6 right-6 z-20 flex flex-col gap-3">
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#FAF9F6]">
+      <header className="sticky top-0 z-10 border-b border-gray-100 bg-[#FAF9F6]/95 px-5 pb-4 pt-8 backdrop-blur-md">
+        <div className="flex items-center justify-between gap-3">
           <button
-            onClick={handleNext}
-            disabled={isGenerating}
-            className="w-full h-14 bg-[#5E7A5E] text-white rounded-full font-semibold text-lg flex items-center justify-center shadow-lg hover:bg-[#4D654D] transition-all disabled:opacity-70"
+            type="button"
+            onClick={() => (step === "setup" ? navigate(-1) : setStep(previousStep(step)))}
+            className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-gray-200/60"
+            aria-label="Zurueck"
           >
-            {isGenerating ? (
-              <Loader2 size={24} className="animate-spin" />
-            ) : step === 3 ? (
-              <span className="flex items-center gap-2">Plan generieren <Sparkles size={18} /></span>
+            <ChevronLeft size={22} className="text-gray-900" />
+          </button>
+          <div className="min-w-0 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#5E7A5E]">
+              KI Create Hub
+            </p>
+            <h1 className="truncate text-lg font-bold text-gray-900">
+              Neue Plaene erstellen
+            </h1>
+          </div>
+          <div className="h-10 w-10" />
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <StepPill active={step === "setup"} done={step !== "setup"} label="Setup" />
+          <StepPill active={step === "context"} done={step === "preview"} label="Kontext" />
+          <StepPill active={step === "preview"} done={false} label="Preview" />
+        </div>
+      </header>
+
+      <main className="hide-scrollbar flex-1 overflow-y-auto px-6 py-5 pb-[112px]">
+        <div className="space-y-5">
+          <RuntimeCard createHub={createHub} />
+
+          {step === "setup" ? (
+            <SetupStep
+              startDate={startDate}
+              endDate={endDate}
+              startingPoint={startingPoint}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+              onStartingPointChange={setStartingPoint}
+            />
+          ) : null}
+
+          {step === "context" ? (
+            <ContextStep
+              goalsText={goalsText}
+              constraintsText={constraintsText}
+              userNotes={userNotes}
+              onGoalsChange={setGoalsText}
+              onConstraintsChange={setConstraintsText}
+              onUserNotesChange={setUserNotes}
+            />
+          ) : null}
+
+          {step === "preview" ? <PreviewStep createHub={createHub} /> : null}
+        </div>
+      </main>
+
+      <footer className="absolute inset-x-0 bottom-[80px] z-20 bg-gradient-to-t from-[#FAF9F6] via-[#FAF9F6] to-transparent px-6 pb-4 pt-6">
+        {step === "setup" ? (
+          <PrimaryButton onClick={() => setStep("context")} disabled={startDate > endDate}>
+            Weiter
+          </PrimaryButton>
+        ) : null}
+
+        {step === "context" ? (
+          <PrimaryButton onClick={() => void generate()} disabled={!canGenerate}>
+            {createHub.status === "generating" ? (
+              <Loader2 size={20} className="animate-spin" />
             ) : (
-              "Weiter"
+              <>
+                Plan generieren
+                <Sparkles size={18} />
+              </>
             )}
-          </button>
-          {step === 2 && (
-            <div className="flex justify-between px-4 mt-2 mb-4">
-              <span className="text-xs text-gray-500 font-medium">Quick Mode</span>
-              <span className="text-xs text-[#5E7A5E] font-bold px-3 py-1 bg-[#5E7A5E]/10 rounded-full">Studio Mode</span>
-            </div>
-          )}
-          {step === 3 && (
-            <button className="w-full py-4 text-gray-600 font-semibold bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-              Als Entwurf speichern
+          </PrimaryButton>
+        ) : null}
+
+        {step === "preview" ? (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              disabled={!createHub.bundle || createHub.status === "saving"}
+              onClick={() => void save("draft")}
+              className="flex h-14 items-center justify-center rounded-[14px] border border-[#D9D6CC] bg-white px-3 text-[13px] font-bold text-gray-800 shadow-sm disabled:opacity-50"
+            >
+              Als Draft speichern
             </button>
+            <button
+              type="button"
+              disabled={!createHub.bundle || createHub.status === "saving"}
+              onClick={() => void save("activate")}
+              className="flex h-14 items-center justify-center gap-2 rounded-[14px] bg-[#5E7A5E] px-3 text-[13px] font-bold text-white shadow-lg disabled:opacity-50"
+            >
+              {createHub.status === "saving" ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                "Direkt aktivieren"
+              )}
+            </button>
+          </div>
+        ) : null}
+      </footer>
+    </div>
+  );
+}
+
+function RuntimeCard({ createHub }: { createHub: ReturnType<typeof useCreateHub> }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const credentials: AuthCredentials = { email, password };
+  const isSignedIn = createHub.runtimeStatus === "remote-signed-in";
+
+  return (
+    <section className="rounded-[18px] border border-[#E5E0D4] bg-white p-4 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#EEF4EE]">
+          {isSignedIn ? (
+            <CheckCircle2 size={18} className="text-[#4A634A]" />
+          ) : (
+            <Lock size={18} className="text-[#8A6F4D]" />
           )}
         </div>
-      )}
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-bold text-gray-900">
+            {isSignedIn ? "Bereit fuer KI-Generierung" : "Anmeldung erforderlich"}
+          </p>
+          <p className="mt-1 text-[11px] leading-snug text-gray-500">
+            {isSignedIn
+              ? createHub.userEmail ?? "Supabase Session aktiv."
+              : "KI-Plaene laufen ueber eine geschuetzte Supabase Edge Function."}
+          </p>
+          {createHub.error ? (
+            <p className="mt-2 text-[11px] leading-snug text-[#9C3A3A]">
+              {createHub.error}
+            </p>
+          ) : null}
+        </div>
+      </div>
 
-      {step === 4 && (
-        <div className="absolute bottom-[88px] left-6 right-6 z-20 flex gap-3">
-          <button className="flex-1 h-14 bg-gray-100 text-gray-700 rounded-full font-semibold text-lg flex items-center justify-center hover:bg-gray-200 transition-all">
-            Anpassen
+      {!isSignedIn ? (
+        <div className="mt-4 space-y-2">
+          <input
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="h-11 w-full rounded-[12px] border border-gray-200 bg-[#FAF9F6] px-3 text-[13px] outline-none focus:border-[#5E7A5E]"
+            placeholder="E-Mail"
+            type="email"
+          />
+          <input
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="h-11 w-full rounded-[12px] border border-gray-200 bg-[#FAF9F6] px-3 text-[13px] outline-none focus:border-[#5E7A5E]"
+            placeholder="Passwort"
+            type="password"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => void createHub.signIn(credentials)}
+              className="h-10 rounded-[12px] bg-[#5E7A5E] text-[12px] font-bold text-white"
+            >
+              Einloggen
+            </button>
+            <button
+              type="button"
+              onClick={() => void createHub.createAccount(credentials)}
+              className="h-10 rounded-[12px] border border-[#DAD6CB] bg-white text-[12px] font-bold text-gray-800"
+            >
+              Account erstellen
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => void createHub.signOut()}
+          className="mt-3 text-[11px] font-bold text-gray-500"
+        >
+          Abmelden
+        </button>
+      )}
+    </section>
+  );
+}
+
+function SetupStep({
+  startDate,
+  endDate,
+  startingPoint,
+  onStartDateChange,
+  onEndDateChange,
+  onStartingPointChange,
+}: {
+  startDate: string;
+  endDate: string;
+  startingPoint: PlanBundleGenerationRequest["startingPoint"];
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
+  onStartingPointChange: (
+    value: PlanBundleGenerationRequest["startingPoint"],
+  ) => void;
+}) {
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Was wird erstellt?</h2>
+        <p className="mt-1 text-[13px] leading-snug text-gray-500">
+          Ein zusammenhaengender MealPlan, TrainingPlan und WeekPlan.
+        </p>
+      </div>
+
+      <div className="grid gap-3">
+        <HubCard
+          icon={Sparkles}
+          title="Combined Week Plan"
+          subtitle="Meals, Training und Wochenstruktur als Bundle"
+          active
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <DateInput label="Start" value={startDate} onChange={onStartDateChange} />
+          <DateInput label="Ende" value={endDate} onChange={onEndDateChange} />
+        </div>
+        <SegmentedStartingPoint
+          value={startingPoint}
+          onChange={onStartingPointChange}
+        />
+      </div>
+    </section>
+  );
+}
+
+function ContextStep({
+  goalsText,
+  constraintsText,
+  userNotes,
+  onGoalsChange,
+  onConstraintsChange,
+  onUserNotesChange,
+}: {
+  goalsText: string;
+  constraintsText: string;
+  userNotes: string;
+  onGoalsChange: (value: string) => void;
+  onConstraintsChange: (value: string) => void;
+  onUserNotesChange: (value: string) => void;
+}) {
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Kontext fuer die KI</h2>
+        <p className="mt-1 text-[13px] leading-snug text-gray-500">
+          Die Ausgabe bleibt ein editierbarer Wellness-Plan.
+        </p>
+      </div>
+      <TextAreaBlock
+        icon={Target}
+        label="Ziele"
+        value={goalsText}
+        onChange={onGoalsChange}
+      />
+      <TextAreaBlock
+        icon={CheckCircle2}
+        label="Constraints"
+        value={constraintsText}
+        onChange={onConstraintsChange}
+      />
+      <TextAreaBlock
+        icon={NotebookPen}
+        label="Notizen"
+        value={userNotes}
+        onChange={onUserNotesChange}
+        rows={4}
+      />
+    </section>
+  );
+}
+
+function PreviewStep({ createHub }: { createHub: ReturnType<typeof useCreateHub> }) {
+  const bundle = createHub.bundle;
+
+  if (!bundle) {
+    return (
+      <section className="rounded-[18px] border border-[#E5E0D4] bg-white p-4 shadow-sm">
+        <p className="text-[13px] font-bold text-gray-900">Noch keine Preview</p>
+        <p className="mt-1 text-[12px] text-gray-500">
+          Generiere zuerst ein Plan-Bundle.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Plan Preview</h2>
+        <p className="mt-1 text-[13px] leading-snug text-gray-600">
+          {bundle.summary}
+        </p>
+      </div>
+
+      {bundle.warnings.length > 0 ? (
+        <div className="rounded-[14px] bg-[#FFF7EC] p-3">
+          {bundle.warnings.map((warning) => (
+            <p key={warning} className="text-[11px] font-medium text-[#9A632F]">
+              {warning}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="grid gap-3">
+        <PreviewCard
+          icon={UtensilsCrossed}
+          title={bundle.mealPlan.title}
+          value={`${bundle.mealPlan.days.reduce((total, day) => total + day.meals.length, 0)} Meals`}
+          subtitle={`${bundle.mealPlan.shoppingList.length} Einkaufsposten`}
+        />
+        <PreviewCard
+          icon={Dumbbell}
+          title={bundle.trainingPlan.title}
+          value={`${bundle.trainingPlan.workouts.length} Workouts`}
+          subtitle={`${bundle.trainingPlan.goals.length} Ziele`}
+        />
+        <PreviewCard
+          icon={CalendarDays}
+          title={bundle.weekPlan.title}
+          value={`${bundle.weekPlan.events.length} Events`}
+          subtitle={`${bundle.weekPlan.focusItems.length} Fokusitems`}
+        />
+      </div>
+
+      {createHub.savedBundle ? (
+        <div className="rounded-[14px] border border-[#DCE7DC] bg-[#F2F7F2] p-3">
+          <p className="text-[12px] font-bold text-[#4A634A]">
+            {createHub.savedBundle.mode === "activate"
+              ? "Plan-Bundle wurde aktiviert."
+              : "Plan-Bundle wurde als Draft gespeichert."}
+          </p>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function HubCard({
+  icon: Icon,
+  title,
+  subtitle,
+  active,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  active?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-4 rounded-[18px] border p-4 shadow-sm ${
+        active ? "border-[#D6E4D6] bg-[#F2F7F2]" : "border-gray-100 bg-white"
+      }`}
+    >
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white">
+        <Icon size={20} className="text-[#5E7A5E]" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[14px] font-bold text-gray-900">{title}</p>
+        <p className="mt-0.5 text-[11px] leading-snug text-gray-500">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+function PreviewCard({
+  icon: Icon,
+  title,
+  value,
+  subtitle,
+}: {
+  icon: LucideIcon;
+  title: string;
+  value: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex items-center gap-4 rounded-[18px] border border-gray-100 bg-white p-4 shadow-sm">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-[#F7F6F1]">
+        <Icon size={20} className="text-[#5E7A5E]" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[14px] font-bold text-gray-900">{title}</p>
+        <p className="mt-0.5 text-[11px] text-gray-500">{subtitle}</p>
+      </div>
+      <span className="shrink-0 rounded-[10px] bg-[#EEF4EE] px-2.5 py-1 text-[11px] font-bold text-[#4A634A]">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function DateInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        {label}
+      </span>
+      <input
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 h-9 w-full bg-transparent text-[13px] font-bold text-gray-900 outline-none"
+      />
+    </label>
+  );
+}
+
+function SegmentedStartingPoint({
+  value,
+  onChange,
+}: {
+  value: PlanBundleGenerationRequest["startingPoint"];
+  onChange: (value: PlanBundleGenerationRequest["startingPoint"]) => void;
+}) {
+  const options: Array<{
+    value: PlanBundleGenerationRequest["startingPoint"];
+    label: string;
+  }> = [
+    { value: "new", label: "Neu" },
+    { value: "previous-week", label: "Letzte Woche" },
+    { value: "current-plan", label: "Aktuell" },
+  ];
+
+  return (
+    <div className="rounded-[16px] bg-[#EBEAE4] p-1">
+      <div className="grid grid-cols-3 gap-1">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={`h-10 rounded-[12px] text-[12px] font-bold transition-colors ${
+              value === option.value
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500"
+            }`}
+          >
+            {option.label}
           </button>
-          <button onClick={() => navigate("/app/home")} className="flex-[2] h-14 bg-[#5E7A5E] text-white rounded-full font-semibold text-lg flex items-center justify-center shadow-lg hover:bg-[#4D654D] transition-all">
-            Plan übernehmen
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StartStep({ onSelect }: { onSelect: () => void }) {
-  return (
-    <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Was möchtest du erstellen?</h2>
-      
-      <div className="space-y-3 mb-10">
-        <CreateCard icon="✨" title="Combined Week Plan" subtitle="Ernährung, Training, Schlaf & mehr" recommended onClick={onSelect} />
-        <CreateCard icon="🥗" title="Meal Plan" subtitle="Lecker, nährstoffreich, zu deinem Ziel" onClick={onSelect} />
-        <CreateCard icon="🏋️" title="Training Plan" subtitle="Strukturiert & progressiv" onClick={onSelect} />
-        <CreateCard icon="🌙" title="Schlaf & Erholung" subtitle="Besser regenerieren, erholt aufwachen" onClick={onSelect} />
-        <CreateCard icon="🎯" title="Wochenfokus" subtitle="Eine Sache, die diese Woche zählt" onClick={onSelect} />
-        <CreateCard icon="📝" title="Review Prep" subtitle="Daten reflektieren, besser planen" onClick={onSelect} />
-      </div>
-
-      <h3 className="text-[10px] font-bold text-gray-500 tracking-wider mb-4 uppercase">Ausgangspunkt</h3>
-      <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden">
-        <StartPointItem icon={<span className="text-lg">🔄</span>} label="Neu starten" />
-        <div className="h-px bg-gray-100 mx-4" />
-        <StartPointItem icon={<span className="text-lg">📈</span>} label="Auf letzter Woche aufbauen" />
-        <div className="h-px bg-gray-100 mx-4" />
-        <StartPointItem icon={<span className="text-lg">⚙️</span>} label="Aktuellen Plan anpassen" />
+        ))}
       </div>
     </div>
   );
 }
 
-function PlanningStep() {
+function TextAreaBlock({
+  icon: Icon,
+  label,
+  value,
+  rows = 5,
+  onChange,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  rows?: number;
+  onChange: (value: string) => void;
+}) {
   return (
-    <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Was soll in deinen Plan einfließen?</h2>
-      <p className="text-sm font-semibold text-gray-600 mb-6">Diese Woche berücksichtigen</p>
+    <label className="block rounded-[18px] border border-gray-100 bg-white p-4 shadow-sm">
+      <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+        <Icon size={15} className="text-[#5E7A5E]" />
+        {label}
+      </span>
+      <textarea
+        value={value}
+        rows={rows}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-3 w-full resize-none bg-transparent text-[13px] leading-relaxed text-gray-800 outline-none"
+      />
+    </label>
+  );
+}
 
-      <div className="space-y-3">
-        <ToggleItem icon="🔗" title="3 Trainingstage" subtitle="Di, Do, Sa" checked />
-        <ToggleItem icon="🥂" title="2 soziale Abende" subtitle="Fr & Sa" checked />
-        <ToggleItem icon="⏳" title="Wenig Zeit am Mittwoch" checked />
-        <ToggleItem icon="🎯" title="Wochenfokus" subtitle="Mietsituation klären" checked />
-        <ToggleItem icon="🚧" title="Wochenhindernis" subtitle="Langer Arbeitstag am Mittwoch" checked />
-        <ToggleItem icon="💶" title="Budget" subtitle="Mittel (ca. 45-65€/Woche)" checked />
-        <ToggleItem icon="📦" title="Vorräte berücksichtigen" subtitle="12 Zutaten verfügbar" checked />
-      </div>
+function StepPill({
+  active,
+  done,
+  label,
+}: {
+  active: boolean;
+  done: boolean;
+  label: string;
+}) {
+  return (
+    <div
+      className={`h-8 rounded-full text-center text-[11px] font-bold leading-8 ${
+        active || done ? "bg-[#E5EFE5] text-[#4A634A]" : "bg-white text-gray-400"
+      }`}
+    >
+      {label}
     </div>
   );
 }
 
-function SummaryStep() {
+function PrimaryButton({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: import("react").ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
-    <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Das wird erstellt</h2>
-
-      <div className="space-y-3 mb-6">
-        <SummaryItem icon="🥗" title="Meal Plan" subtitle="7 Tage · ~2.200 kcal/Tag" />
-        <SummaryItem icon="🏋️" title="Training Plan" subtitle="3 Einheiten" />
-        <SummaryItem icon="📅" title="Wochenstruktur" subtitle="Termine, Fokus & Puffer" />
-        <SummaryItem icon="🌙" title="Schlaf & Recovery" subtitle="Empfehlungen" />
-        <SummaryItem icon="🛒" title="Einkaufsliste" subtitle="Nach Kategorien" />
-        <SummaryItem icon="📊" title="Nutrition Overview" subtitle="Makros & Mikronährstoffe" />
-      </div>
-
-      <div className="flex items-center justify-center gap-2 text-[11px] text-gray-500 font-medium">
-        <span className="text-[#5E7A5E]">✓</span> Erstellt in ca. 30 Sekunden
-      </div>
-    </div>
-  );
-}
-
-function ResultStep() {
-  return (
-    <div className="animate-in zoom-in-95 duration-500">
-      <div className="flex justify-center mb-6">
-        <div className="px-4 py-1.5 bg-[#E6EFE6] text-[#4A634A] text-xs font-semibold rounded-full border border-[#D5E5D5]">
-          Plan erstellt
-        </div>
-      </div>
-
-      <h2 className="text-3xl font-bold text-gray-900 mb-1">Dein Plan für</h2>
-      <h2 className="text-3xl font-bold text-gray-900 mb-4">5.–11. Mai</h2>
-      <p className="text-sm text-gray-600 mb-8">
-        Alles ist bereit. Du kannst noch Anpassungen vornehmen.
-      </p>
-
-      <div className="space-y-4">
-        <ResultItem
-          icon={<img src="https://images.unsplash.com/photo-1747292718361-c838a9968ec7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoZWFsdGh5JTIwbWVhbCUyMGJvd2wlMjB0b3AlMjB2aWV3fGVufDF8fHx8MTc3NTM3MDQ1N3ww&ixlib=rb-4.1.0&q=80&w=1080" alt="Meal" className="w-full h-full object-cover rounded-xl" />}
-          title="Meal Plan"
-          subtitle="7 Tage · 21 Mahlzeiten"
-        />
-        <ResultItem
-          icon={<div className="w-full h-full bg-[#EBF0FA] text-[#3B66A3] rounded-xl flex items-center justify-center text-2xl">🏋️</div>}
-          title="Training Plan"
-          subtitle="3 Workouts"
-        />
-        <ResultItem
-          icon={<div className="w-full h-full bg-[#E6F3EE] text-[#2F7B5E] rounded-xl flex items-center justify-center text-2xl">📅</div>}
-          title="Wochenstruktur"
-          subtitle="35h Fokus · 8h Puffer"
-        />
-        <ResultItem
-          icon={<div className="w-full h-full bg-[#FCF3E5] text-[#A67C40] rounded-xl flex items-center justify-center text-2xl">⚖️</div>}
-          title="Nährstoffübersicht"
-          subtitle="Ø 2.184 kcal · 122 g Protein"
-        />
-      </div>
-    </div>
-  );
-}
-
-// Subcomponents
-
-function CreateCard({ icon, title, subtitle, recommended, onClick }: { icon: string, title: string, subtitle: string, recommended?: boolean, onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="w-full text-left bg-white p-4 rounded-[20px] border border-gray-100 shadow-sm flex items-center justify-between hover:border-[#5E7A5E] hover:shadow-md transition-all group">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-[14px] bg-[#FAF9F6] border border-[#EBE7DF] flex items-center justify-center text-xl shrink-0 group-hover:scale-105 transition-transform">
-          {icon}
-        </div>
-        <div>
-          <h4 className="text-[15px] font-bold text-gray-900">{title}</h4>
-          <p className="text-[11px] text-gray-500 mt-0.5">{subtitle}</p>
-        </div>
-      </div>
-      {recommended && (
-        <span className="px-2 py-1 bg-[#E6EFE6] text-[#4A634A] text-[9px] font-bold rounded uppercase tracking-wider">
-          Empfohlen
-        </span>
-      )}
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="flex h-14 w-full items-center justify-center gap-2 rounded-[16px] bg-[#5E7A5E] text-[15px] font-bold text-white shadow-lg transition-colors disabled:opacity-50"
+    >
+      {children}
     </button>
   );
 }
 
-function StartPointItem({ icon, label }: { icon: React.ReactNode, label: string }) {
-  return (
-    <button className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors">
-      <span className="text-gray-400">{icon}</span>
-      <span className="text-[13px] font-semibold text-gray-800">{label}</span>
-    </button>
-  );
+function previousStep(step: WizardStep): WizardStep {
+  if (step === "preview") {
+    return "context";
+  }
+
+  return "setup";
 }
 
-function ToggleItem({ icon, title, subtitle, checked = false }: { icon: string, title: string, subtitle?: string, checked?: boolean }) {
-  return (
-    <div className="bg-white p-4 rounded-[20px] border border-gray-100 shadow-sm flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-[12px] bg-[#FAF9F6] border border-[#EBE7DF] flex items-center justify-center text-lg shrink-0">
-          {icon}
-        </div>
-        <div>
-          <h4 className="text-[14px] font-bold text-gray-900 leading-tight">{title}</h4>
-          {subtitle && <p className="text-[11px] text-gray-500 mt-0.5">{subtitle}</p>}
-        </div>
-      </div>
-      {/* Custom Switch using Checkbox for simplicity or pure CSS */}
-      <div className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center cursor-pointer ${checked ? 'bg-[#5E7A5E]' : 'bg-gray-300'}`}>
-        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
-      </div>
-    </div>
-  );
+function getNextWeekRange() {
+  const today = new Date();
+  const day = today.getDay();
+  const daysUntilNextMonday = ((8 - day) % 7) || 7;
+  const start = new Date(today);
+  start.setDate(today.getDate() + daysUntilNextMonday);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  return {
+    startDate: toInputDate(start),
+    endDate: toInputDate(end),
+  };
 }
 
-function SummaryItem({ icon, title, subtitle }: { icon: string, title: string, subtitle: string }) {
-  return (
-    <div className="bg-white p-4 rounded-[20px] border border-gray-100 shadow-sm flex items-center gap-4">
-      <div className="w-10 h-10 rounded-[12px] bg-[#FAF9F6] border border-[#EBE7DF] flex items-center justify-center text-lg shrink-0">
-        {icon}
-      </div>
-      <div>
-        <h4 className="text-[14px] font-bold text-gray-900 leading-tight">{title}</h4>
-        <p className="text-[11px] text-gray-500 mt-0.5">{subtitle}</p>
-      </div>
-    </div>
-  );
+function toInputDate(date: Date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
-function ResultItem({ icon, title, subtitle }: { icon: React.ReactNode, title: string, subtitle: string }) {
-  return (
-    <div className="bg-white p-4 rounded-[24px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-[#5E7A5E] transition-colors cursor-pointer">
-      <div className="w-14 h-14 rounded-xl shrink-0 border border-gray-100">
-        {icon}
-      </div>
-      <div>
-        <h4 className="text-base font-bold text-gray-900">{title}</h4>
-        <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
-      </div>
-    </div>
-  );
-}
-
-function ChevronRight({ size, className }: { size: number, className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="m9 18 6-6-6-6"/>
-    </svg>
-  );
+function toLines(value: string) {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 }

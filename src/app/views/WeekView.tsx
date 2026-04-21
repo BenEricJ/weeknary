@@ -17,6 +17,12 @@ import { AppTabHeader } from "../components/AppTabHeader";
 import { UserProfileDrawer } from "../components/UserProfileDrawer";
 import { WeekCalendar } from "../components/WeekCalendar";
 import { DayScheduleSection } from "../components/schedule/DayScheduleSection";
+import { PlanningContextPanel } from "../planning/PlanningContextPanel";
+import { WeekPlanOrchestrationPanel } from "../planning/WeekPlanOrchestrationPanel";
+import { usePlanningContext } from "../planning/usePlanningContext";
+import { useWeekPlanOrchestration } from "../planning/useWeekPlanOrchestration";
+import { WeekPlanRuntimePanel } from "../weekPlan/WeekPlanRuntimePanel";
+import { useActiveWeekPlan } from "../weekPlan/useActiveWeekPlan";
 import {
   CATEGORY_META,
   WEEK_PLAN,
@@ -54,6 +60,10 @@ function formatMinutes(totalMinutes: number) {
   }
 
   return `${hours} h ${minutes.toString().padStart(2, "0")}`;
+}
+
+function isTimedEvent(entry: ScheduleEntry): entry is EventItem {
+  return "start" in entry && "end" in entry;
 }
 
 
@@ -128,6 +138,9 @@ function getFeaturedEvent(day: DayPlan, now: Date) {
 }
 
 export function WeekView() {
+  const activeWeekPlan = useActiveWeekPlan();
+  const planningContext = usePlanningContext();
+  const orchestration = useWeekPlanOrchestration();
   const [weekPlan, setWeekPlan] = useState(() => WEEK_PLAN);
   const [selectedDate, setSelectedDate] = useState(() => {
     const todayPlan = WEEK_PLAN.find((day) => isSameDay(getDayDate(day), new Date()));
@@ -397,6 +410,38 @@ export function WeekView() {
       />
 
       <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[88px] flex flex-col gap-5">
+      <WeekPlanRuntimePanel
+        status={activeWeekPlan.status}
+        runtimeStatus={activeWeekPlan.runtimeStatus}
+        error={activeWeekPlan.error}
+        userEmail={activeWeekPlan.userEmail}
+        isRemoteConfigured={activeWeekPlan.isRemoteConfigured}
+        localFirstStatus={activeWeekPlan.localFirstStatus}
+        onReload={() => void activeWeekPlan.reload()}
+        onSignIn={activeWeekPlan.signIn}
+        onCreateAccount={activeWeekPlan.createAccount}
+        onSignOut={activeWeekPlan.signOut}
+        onSaveRemoteDemoPlan={activeWeekPlan.saveRemoteDemoPlan}
+        onArchiveActivePlan={activeWeekPlan.archiveActivePlan}
+        onRetryRemoteSave={activeWeekPlan.retryRemoteSave}
+      />
+      <PlanningContextPanel
+        status={planningContext.status}
+        context={planningContext.context}
+        error={planningContext.error}
+        onReload={() => void planningContext.reload()}
+      />
+      <WeekPlanOrchestrationPanel
+        orchestration={orchestration}
+        onDraftSaved={() => {
+          void activeWeekPlan.reload();
+          void planningContext.reload();
+        }}
+        onDraftActivated={() => {
+          void activeWeekPlan.reload();
+          void planningContext.reload();
+        }}
+      />
       <div className="bg-[#ECE9E1] rounded-[16px] p-1 flex">
         <button
           onClick={() => setViewMode("day")}
@@ -492,7 +537,7 @@ export function WeekView() {
             rightLabel={`${formatMinutes(selectedDayPlannedMinutes)} geplant`}
             day={selectedDay}
             categoryMeta={CATEGORY_META}
-            onOpen={(entry) => openScheduleEntry(selectedDay, entry)}
+            onOpen={(entry) => openScheduleEntry(selectedDay, entry as ScheduleEntry)}
             onEdit={(eventId) => openEventEditor(selectedDay.date, eventId)}
             onDelete={(eventId) => deleteEvent(selectedDay.date, eventId)}
             openSwipeEventId={openSwipeEventId}

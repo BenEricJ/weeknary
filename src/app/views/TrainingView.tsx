@@ -3,10 +3,8 @@ import { Dumbbell, Link2, Activity, Flower, CircleDot, Zap, MapIcon } from "luci
 import { WorkoutDetailDrawer } from "../components/WorkoutDetailDrawer";
 import { AppTabHeader } from "../components/AppTabHeader";
 import { UserProfileDrawer } from "../components/UserProfileDrawer";
-import {
-  getDefaultTrainingDate,
-  getTrainingPlanRowByDate,
-} from "../data/trainingPlan";
+import { useActiveTrainingPlan } from "../trainingPlan/useActiveTrainingPlan";
+import { TrainingPlanRuntimePanel } from "../trainingPlan/TrainingPlanRuntimePanel";
 
 // Deine neuen aufgeteilten Komponenten:
 import { PlanSection, WorkoutsSection, ProgressSection } from "../components/training/TrainingTabs";
@@ -58,11 +56,12 @@ const progressData: Record<string, any> = {
 
 // --- KOMPONENTE ---
 export function TrainingView() {
+  const activeTrainingPlan = useActiveTrainingPlan();
   // -- STATES --
   const [activeTab, setActiveTab] = useState("Plan");
   const [timeRangeTab, setTimeRangeTab] = useState("4 Wochen");
   const [activeCategory, setActiveCategory] = useState("Alle");
-  const [activeDate, setActiveDate] = useState(() => getDefaultTrainingDate());
+  const [activeDate, setActiveDate] = useState(() => activeTrainingPlan.defaultDate);
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
@@ -75,7 +74,7 @@ export function TrainingView() {
   // Vorbereitete Daten
   const currentProgress = progressData[timeRangeTab] || progressData["4 Wochen"];
   const categoriesWithActiveState = categories.map(c => ({ ...c, active: c.label === activeCategory }));
-  const selectedTrainingDay = getTrainingPlanRowByDate(activeDate);
+  const selectedTrainingDay = activeTrainingPlan.getRowByDate(activeDate);
 
   return (
     <div className="h-full w-full bg-[#FAF9F6] flex flex-col relative overflow-hidden">
@@ -97,6 +96,22 @@ export function TrainingView() {
 
       {/* CONTENT AREA */}
       <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-[112px] pb-[96px] flex flex-col">
+        <div className="mb-5">
+          <TrainingPlanRuntimePanel
+            status={activeTrainingPlan.status}
+            runtimeStatus={activeTrainingPlan.runtimeStatus}
+            error={activeTrainingPlan.error}
+            userEmail={activeTrainingPlan.userEmail}
+            isRemoteConfigured={activeTrainingPlan.isRemoteConfigured}
+            onReload={() => void activeTrainingPlan.reload()}
+            onSignIn={activeTrainingPlan.signIn}
+            onCreateAccount={activeTrainingPlan.createAccount}
+            onSignOut={activeTrainingPlan.signOut}
+            onSaveRemoteDemoPlan={activeTrainingPlan.saveRemoteDemoPlan}
+            onArchiveActivePlan={activeTrainingPlan.archiveActivePlan}
+          />
+        </div>
+
         {/* MAIN TABS NAVIGATION */}
         <div className="w-full bg-[#EBEAE4] p-1 rounded-xl flex shrink-0 mb-5">
           {["Plan", "Workouts", "Fortschritt"].map(tab => (

@@ -109,57 +109,6 @@ export interface WeeklyBudgetSummary {
   note: string;
 }
 
-export interface ShoppingPantryItem {
-  product: string;
-  amount: string;
-  use: string;
-}
-
-export interface ShoppingListItem {
-  product: string;
-  plannedAmount: string;
-  priceReference: string;
-  weeklyCost: number;
-  use: string[];
-}
-
-export interface ShoppingStore {
-  store: string;
-  items: ShoppingListItem[];
-}
-
-export interface BulkPantryCost {
-  product: string;
-  plannedAmount: string;
-  costShare: number;
-  priceStatus: string;
-}
-
-export interface NutrientReviewRow {
-  nutrient: string;
-  target: string;
-  planValue: string;
-  rating: string;
-  mainSources: string[];
-  correction: string;
-}
-
-export interface WeeklyReview {
-  strengths: string[];
-  gapsAndActions: string[];
-  criticismAndCounterpoints: string[];
-}
-
-export interface NutritionShoppingAndReview {
-  pantry: ShoppingPantryItem[];
-  stores: ShoppingStore[];
-  bulkPantryDetails: BulkPantryCost[];
-  costDrivers: string[];
-  priceJumpAlternatives: string[];
-  nutrients: NutrientReviewRow[];
-  review: WeeklyReview;
-}
-
 export interface NutritionWeekMeta {
   planLabel: string;
   startIsoDate: string;
@@ -181,11 +130,6 @@ export interface NutritionDay {
   monthLabel: string;
   training: string;
   targets: NutritionTargets;
-  kcalBasis: number;
-  kcalTrainingPlus: number;
-  plannedKcal: number;
-  plannedProtein: number;
-  hint: string;
   dailyLogic: string;
   meals: MealSlot[];
 }
@@ -200,7 +144,6 @@ export interface NutritionPlan {
   externalMealGuidance: ExternalMealGuidance;
   criticalNutrientTips: CriticalNutrientTip[];
   budget: WeeklyBudgetSummary;
-  shoppingAndReview: NutritionShoppingAndReview;
 }
 
 const DAY_LABELS: Record<string, string> = {
@@ -568,21 +511,11 @@ function buildDay(
   training: string,
   kcalTarget: number,
   proteinTarget: number,
-  kcalBasisOrDailyLogic: number | string,
-  kcalTrainingPlusOrMeals: number | MealSlot[],
-  plannedKcal = kcalTarget,
-  plannedProtein = proteinTarget,
-  hint = "",
-  dailyLogic = "",
-  meals: MealSlot[] = [],
+  dailyLogic: string,
+  meals: MealSlot[],
 ): NutritionDay {
   const date = parseIsoDate(isoDate);
   const dayKey = date.toLocaleDateString("en-US", { weekday: "short" });
-  const isLegacyCall = typeof kcalBasisOrDailyLogic === "string";
-  const resolvedDailyLogic = isLegacyCall ? kcalBasisOrDailyLogic : dailyLogic;
-  const resolvedMeals = isLegacyCall
-    ? (kcalTrainingPlusOrMeals as MealSlot[])
-    : meals;
 
   return {
     dayShort: DAY_SHORT_LABELS[dayKey],
@@ -595,13 +528,8 @@ function buildDay(
       kcalTarget,
       proteinTarget,
     },
-    kcalBasis: isLegacyCall ? kcalTarget : kcalBasisOrDailyLogic,
-    kcalTrainingPlus: isLegacyCall ? 0 : (kcalTrainingPlusOrMeals as number),
-    plannedKcal: isLegacyCall ? kcalTarget : plannedKcal,
-    plannedProtein: isLegacyCall ? proteinTarget : plannedProtein,
-    hint: isLegacyCall ? "" : hint,
-    dailyLogic: resolvedDailyLogic,
-    meals: resolvedMeals,
+    dailyLogic,
+    meals,
   };
 }
 
@@ -622,498 +550,704 @@ function buildExternalMeal(slot: MealSlotType): MealSlot {
   };
 }
 
-function buildRecipe(
-  id: string,
-  name: string,
-  use: string,
-  cookTime: string,
-  ingredients: Array<[string, number | string, string]>,
-  kcal: number,
-  protein: number,
-  carbs: number,
-  fat: number,
-  tags: string[],
-  batchServings = 1,
-): MealRecipe {
-  return {
-    id,
-    name,
-    use,
-    cookTime,
-    batchServings,
-    ingredients: ingredients.map(([ingredient, amount, unit]) => ({
-      ingredient,
-      amount,
-      unit,
-    })),
-    preparation: [
-      "Zutaten vorbereiten.",
-      "Nach Wochenplan kurz garen, mixen oder verpacken.",
-      "Mit Jodsalz und Gewuerzen abschmecken.",
-    ],
-    tags,
-    nutrition: {
-      kcal,
-      protein,
-      carbs,
-      fat,
-      estimated: true,
-      note: "Protein aus Plan uebernommen; weitere Makros grob geschaetzt.",
-    },
-  };
-}
-
 export const NUTRITION_PLAN: NutritionPlan = {
   week: {
     planLabel:
-      "KW 16 13.04.2026 - 19.04.2026 | Kostenfokus | meal prep und batches erlaubt",
-    startIsoDate: "2026-04-13",
-    endIsoDate: "2026-04-19",
+      "KW 15 06.04.2026 - 12.04.2026 | Proteinfokus | meal prep und batches erlaubt",
+    startIsoDate: "2026-04-06",
+    endIsoDate: "2026-04-12",
     weekStartLabel: "Montag",
     persons: 1,
     mode: "meal prep und batches erlaubt",
     optimizationLogic: [
-      "Kostenminimierung bei 25 EUR Hard Cap",
-      "Naehrstoffdeckung und Protein-Ziel 110 g/Tag absichern",
-      "Zeit knapp halten und Batches erlauben",
-      "Regionale und saisonale Auswahl priorisieren",
-      "Aepfel, Moehren, Zwiebeln, Lauch, Pilze und haltbare Tomatenprodukte priorisiert; keine Exoten eingeplant.",
+      "Protein-Ziel 110 g/Tag im Wochenschnitt",
+      "Budget-Hard-Cap 25 EUR möglichst einhalten",
+      "Hohe Varianz trotz knapper Kosten",
+      "Regionale und saisonale Auswahl für Deutschland Anfang April",
+      "Kochkomplexität eher hoch, aber werktags alltagstauglich",
     ],
     assumptions: [
-      "Externe Abendmahlzeiten wurden mit 650 kcal und 25 g Protein angesetzt; externes Sonntagsmittag mit 800 kcal und 30 g Protein.",
-      "Trainingsaufschlaege: Mo +350, Di +550, Mi +200, Do +150, Fr +500, So +650 kcal.",
-      "Unbepreiste Pantry-Basics wie Hafer, Couscous, Weizenmehl, Tahin und Leinsamen wurden konservativ als Bestandsanteil pauschal mit 1.10 EUR beruecksichtigt.",
-      "Joddeckung setzt konsequenten Einsatz von Jodsalz in den Hauptmahlzeiten voraus.",
-      "Calcium wird ueber angereicherten Drink und Calcium-Supplement abgesichert.",
+      "Externe Mahlzeiten wurden für die Nährstofflogik mit ca. 650-800 kcal und 25-30 g Protein als vegan/proteinbewusst angenommen.",
+      "Preisannahme ohne Kassenzettel: VEMONDO High Protein Sojadrink 1,29 EUR pro 1 l.",
+      "Nicht voll monetarisierte Pantryartikel machen die realen Vollkosten wahrscheinlich leicht höher.",
     ],
     microRoutine: [
-      "Vitamin B12 Montag und Donnerstag morgens laut Packung.",
-      "Vitamin D taeglich 1 Perle zum Fruehstueck als April-Annahme.",
-      "Taeglich 1 Paranuss fuer Selen.",
-      "Kreatin taeglich 3-5 g im Morgenshake.",
-      "Jodsalz konsequent in den Hauptmahlzeiten verwenden.",
+      "Täglich 1 Paranuss aus dem Bestand.",
+      "Täglich B12 aus dem Bestand.",
+      "Vitamin D saisonabhängig weiterführen.",
+      "Kreatin optional 3-5 g/Tag aus dem Bestand.",
+      "Jodsalz konsequent in den gekochten Mahlzeiten verwenden.",
+      "Zusätzlich täglich 250-350 ml HP-Sojadrink einplanen, falls externe Meals calciumarm ausfallen.",
     ],
-    criticalNutrients: ["Calcium", "Jod", "Selen", "Vitamin D", "B12"],
+    criticalNutrients: ["Calcium", "Jod", "Vitamin D", "B12"],
   },
   days: [
     buildDay(
-      "2026-04-13",
-      "Rad Grundlage 60 min + Kraft 35 min",
+      "2026-04-06",
+      "06:30-07:30 Zwift Grundlage; 12:00-13:00 Krafttraining",
       2100,
-      110,
-      1750,
-      350,
-      2120,
-      114,
-      "Abend to-go",
-      "Frueher Shake, warmer Pasta-Proteinanker, abends transportable Couscous Bowl.",
+      115,
+      "Früher Proteinanker, mittags warm, abends To-go.",
       [
-        buildMeal("breakfast", "apfel-zimt-shake"),
-        buildMeal("lunch", "seitan-lauch-pasta"),
-        buildMeal("dinner", "to-go-couscous-bowl"),
-        buildMeal("snack", "apfel-soja-crumbles"),
+        buildMeal("breakfast", "apfel-proteinshake"),
+        buildMeal("lunch", "tomaten-mung-dal"),
+        buildMeal("dinner", "couscous-soja-bowl"),
+        buildMeal("snack", "apfel-kernmix"),
       ],
     ),
     buildDay(
-      "2026-04-14",
-      "Rad Strength 90 min + Lauf 35 min",
-      2300,
-      110,
-      1750,
-      550,
-      2230,
-      111,
-      "Mittag to-go, Abend extern",
-      "Hoher Trainingsaufschlag, Mittag als Dal-Topf, externes Abendessen proteinbewusst waehlen.",
+      "2026-04-07",
+      "06:30-08:00 Zwift Strength; 12:00-13:00 Lauftraining MIT/LOW",
+      2150,
+      115,
+      "Office-Tag, To-go-Mittag, externes Abendessen proteinbewusst wählen.",
       [
-        buildMeal("breakfast", "kaffee-hafer-shake"),
-        buildMeal("lunch", "to-go-dal-topf"),
+        buildMeal("breakfast", "joghurt-oats-glas"),
+        buildMeal("lunch", "couscous-soja-bowl"),
         buildExternalMeal("dinner"),
-        buildMeal("snack", "apfel-soja-crumbles"),
+        buildMeal("snack", "apfel-kernmix"),
       ],
     ),
     buildDay(
-      "2026-04-15",
-      "Rad Grundlage 60 min",
+      "2026-04-08",
+      "06:30-07:30 Zwift Grundlage",
       1950,
       110,
-      1750,
-      200,
-      1980,
-      110,
-      "Mittag to-go, Abend extern",
-      "Office-Tag mit Chili-Couscous als dichte To-go-Mahlzeit, abends extern.",
+      "Office-Tag, kräftiges To-go-Mittag, abends extern.",
       [
-        buildMeal("breakfast", "karottenkuchen-shake"),
-        buildMeal("lunch", "to-go-chili-couscous"),
+        buildMeal("breakfast", "apfel-proteinbowl"),
+        buildMeal("lunch", "seitan-pilz-pfanne"),
         buildExternalMeal("dinner"),
-        buildMeal("snack", "soja-crumbles"),
+        buildMeal("snack", "sojajoghurt-dip"),
       ],
     ),
     buildDay(
-      "2026-04-16",
-      "Kraft 35 min",
+      "2026-04-09",
+      "12:00-13:00 Krafttraining",
       1900,
       110,
-      1750,
-      150,
-      1900,
-      112,
-      "Abend to-go",
-      "Mittags Pilz-Schnetzelpfanne, abends Seitan-Rest als transportabler Wrap.",
+      "Mittags warm, abends To-go aus Batch-Rest.",
       [
-        buildMeal("breakfast", "kakao-hafer-shake"),
-        buildMeal("lunch", "pilz-schnetzelpfanne"),
-        buildMeal("dinner", "to-go-seitan-wrap"),
-        buildMeal("snack", "moehren-senf"),
+        buildMeal("breakfast", "tahin-apfel-shake"),
+        buildMeal("lunch", "tofu-lauch-polenta"),
+        buildMeal("dinner", "seitan-pilz-pfanne"),
+        buildMeal("snack", "apfel-kernmix"),
       ],
     ),
     buildDay(
-      "2026-04-17",
-      "Rad Tempo 90 min + Lauf 35 min",
-      2250,
-      110,
-      1750,
-      500,
-      2210,
-      111,
-      "Abend extern",
-      "Trainingsfreitag mit Pasta-Rest, externes Abendessen als flexible Komponente.",
+      "2026-04-10",
+      "06:30-08:00 Zwift Tempo; 12:00-13:00 Lauftraining MIT/LOW",
+      2150,
+      115,
+      "Hoher Protein- und Carb-Fokus, abends extern.",
       [
-        buildMeal("breakfast", "vanille-apfel-shake"),
-        buildMeal("lunch", "tomaten-schnetzelpasta"),
+        buildMeal("breakfast", "apfel-proteinshake"),
+        buildMeal("lunch", "ofenkartoffeln-seitan"),
         buildExternalMeal("dinner"),
-        buildMeal("snack", "apfel-soja-crumbles"),
+        buildMeal("snack", "apfel-kernmix"),
       ],
     ),
     buildDay(
-      "2026-04-18",
-      "Kein Training",
+      "2026-04-11",
+      "Kein fixes Training",
       1750,
-      110,
-      1750,
-      0,
-      1770,
-      111,
-      "Abend extern",
-      "Ruhetag mit Mung-Tofu-Wrap mittags und externem Abendessen.",
+      100,
+      "Etwas entspannter, aber Protein weiterhin hoch halten.",
       [
-        buildMeal("breakfast", "zimt-apfel-shake"),
-        buildMeal("lunch", "mung-ruehrei-wrap"),
+        buildMeal("breakfast", "joghurt-oats-glas"),
+        buildMeal("lunch", "kartoffel-soja-pfanne"),
         buildExternalMeal("dinner"),
-        buildMeal("snack", "moehren-senf"),
+        buildMeal("snack", "sojajoghurt-dip"),
       ],
     ),
     buildDay(
-      "2026-04-19",
-      "Long Ride 180 min",
+      "2026-04-12",
+      "17:00-20:00 Long Ride",
       2400,
-      110,
-      1750,
-      650,
-      2360,
-      116,
-      "Mittag extern, abends Meal-Prep-Nutzung",
-      "Long-Ride-Tag mit grossem Shake, externem Mittag und schneller Couscous-Recovery.",
+      115,
+      "Carbs vor und während der Einheit, abends Recovery-Bowl.",
       [
-        buildMeal("breakfast", "hafer-shake-gross"),
+        buildMeal("breakfast", "overnight-oats-apfel"),
         buildExternalMeal("lunch"),
-        buildMeal("dinner", "long-ride-couscous"),
-        buildMeal("snack", "apfel-paranuss"),
+        buildMeal("dinner", "recovery-couscous-bowl"),
+        buildMeal("snack", "ride-snack-salzkartoffeln"),
       ],
     ),
   ],
   recipes: {
-    "apfel-zimt-shake": buildRecipe("apfel-zimt-shake", "Apfel-Zimt Shake", "Schnelles Fruehstueck mit Kreatin direkt im Shake.", "5 min", [
-      ["Haferflocken", 70, "g"],
-      ["Haferdrink", 300, "ml"],
-      ["Wasser", 300, "ml"],
-      ["Erbsenprotein", 30, "g"],
-      ["Apfel", 150, "g"],
-      ["Leinsamen", 15, "g"],
-      ["Zimt", 1, "TL"],
-    ], 585, 38, 82, 12, ["Shake", "Schnell", "Fruehstueck"]),
-    "kaffee-hafer-shake": buildRecipe("kaffee-hafer-shake", "Kaffee-Hafer Shake", "Bitter-suesser Shake fuer den hohen Trainingsdienstag.", "5 min", [
-      ["Haferflocken", 70, "g"],
-      ["Haferdrink", 300, "ml"],
-      ["Wasser", 250, "ml"],
-      ["Erbsenprotein", 30, "g"],
-      ["Instantkaffee", 1, "TL"],
-      ["Leinsamen", 15, "g"],
-    ], 520, 37, 67, 11, ["Shake", "Training", "Fruehstueck"]),
-    "karottenkuchen-shake": buildRecipe("karottenkuchen-shake", "Karottenkuchen Shake", "Moehre und Apfel als regionale Shake-Varianz.", "5 min", [
-      ["Haferflocken", 65, "g"],
-      ["Haferdrink", 300, "ml"],
-      ["Wasser", 300, "ml"],
-      ["Erbsenprotein", 30, "g"],
-      ["Moehre", 100, "g"],
-      ["Apfel", 80, "g"],
-      ["Leinsamen", 15, "g"],
-    ], 555, 37, 76, 12, ["Shake", "Regional", "Fruehstueck"]),
-    "kakao-hafer-shake": buildRecipe("kakao-hafer-shake", "Kakao-Hafer Shake", "Schokoladiger Shake fuer den Krafttag.", "5 min", [
-      ["Haferflocken", 70, "g"],
-      ["Haferdrink", 300, "ml"],
-      ["Wasser", 300, "ml"],
-      ["Erbsenprotein", 30, "g"],
-      ["Kakaopulver", 1, "EL"],
-      ["Leinsamen", 15, "g"],
-    ], 545, 38, 68, 13, ["Shake", "Krafttag", "Fruehstueck"]),
-    "vanille-apfel-shake": buildRecipe("vanille-apfel-shake", "Vanille-Apfel Shake", "Apfel-Shake fuer den Tempo- und Lauftag.", "5 min", [
-      ["Haferflocken", 70, "g"],
-      ["Haferdrink", 300, "ml"],
-      ["Wasser", 300, "ml"],
-      ["Erbsenprotein", 30, "g"],
-      ["Apfel", 150, "g"],
-      ["Leinsamen", 15, "g"],
-      ["Vanille", 1, "Prise"],
-    ], 585, 38, 82, 12, ["Shake", "Training", "Fruehstueck"]),
-    "zimt-apfel-shake": buildRecipe("zimt-apfel-shake", "Zimt-Apfel Shake", "Ruhetags-Shake mit Hafer, Apfel und Leinsamen.", "5 min", [
-      ["Haferflocken", 70, "g"],
-      ["Haferdrink", 300, "ml"],
-      ["Wasser", 300, "ml"],
-      ["Erbsenprotein", 30, "g"],
-      ["Apfel", 150, "g"],
-      ["Leinsamen", 15, "g"],
-      ["Zimt", 1, "TL"],
-    ], 585, 38, 82, 12, ["Shake", "Schnell", "Fruehstueck"]),
-    "hafer-shake-gross": buildRecipe("hafer-shake-gross", "Hafer-Shake gross", "Groesserer Shake fuer den Long-Ride-Tag.", "5 min", [
-      ["Haferflocken", 90, "g"],
-      ["Haferdrink", 300, "ml"],
-      ["Wasser", 300, "ml"],
-      ["Erbsenprotein", 35, "g"],
-      ["Apfel", 150, "g"],
-      ["Leinsamen", 15, "g"],
-    ], 690, 43, 102, 13, ["Long Ride", "Shake", "Fruehstueck"]),
-    "seitan-lauch-pasta": buildRecipe("seitan-lauch-pasta", "Seitan-Lauch-Pasta", "Montagmittag mit Seitan-Basis; zweite Basisportion fuer Donnerstag.", "20 min", [
-      ["Vollkornspaghetti", 120, "g"],
-      ["Seitan-Pulver", 50, "g"],
-      ["Weizenmehl", 15, "g"],
-      ["Lauch", 80, "g"],
-      ["Zwiebel", 50, "g"],
-      ["Tomatenmark", 15, "g"],
-      ["Sojasauce", 10, "ml"],
-      ["Hefeflocken", 10, "g"],
-    ], 710, 47, 105, 6, ["Warm", "Batch", "Protein"]),
-    "to-go-couscous-bowl": buildRecipe("to-go-couscous-bowl", "To-go Couscous Bowl", "Montagabend transportable Bowl.", "15 min", [
-      ["Couscous", 100, "g"],
-      ["Soja-Schnetzel", 60, "g"],
-      ["Moehre", 150, "g"],
-      ["Zwiebel", 50, "g"],
-      ["Tahin", 15, "g"],
-    ], 665, 32, 94, 12, ["To-go", "Bowl", "Protein"]),
-    "to-go-dal-topf": buildRecipe("to-go-dal-topf", "To-go Dal-Topf", "Dienstagmittag mikrowellentauglich im Buero.", "25 min", [
-      ["Mungbohnen geschaelt", 70, "g"],
-      ["Tofu", 200, "g"],
-      ["Moehre", 150, "g"],
-      ["Lauch", 100, "g"],
-      ["Tomatenmark", 20, "g"],
-    ], 610, 42, 65, 17, ["To-go", "Dal", "Lunch"]),
-    "to-go-chili-couscous": buildRecipe("to-go-chili-couscous", "To-go Chili-Couscous", "Mittwochmittag als dichter To-go-Topf.", "25 min", [
-      ["Couscous", 90, "g"],
-      ["Kidney Bohnen", 120, "g"],
-      ["Soja-Schnetzel", 40, "g"],
-      ["Gehackte Tomaten", 200, "g"],
-      ["Zwiebel", 60, "g"],
-      ["Moehre", 80, "g"],
-      ["Tomatenmark", 10, "g"],
-    ], 690, 38, 112, 5, ["To-go", "Batch", "Lunch"], 2),
-    "pilz-schnetzelpfanne": buildRecipe("pilz-schnetzelpfanne", "Pilz-Schnetzelpfanne", "Donnerstagmittag mit schnellen Fladen.", "20 min", [
-      ["Soja-Schnetzel", 50, "g"],
-      ["Champignons", 125, "g"],
-      ["Moehre", 100, "g"],
-      ["Zwiebel", 60, "g"],
-      ["Weizenmehl", 100, "g"],
-    ], 645, 34, 101, 5, ["Warm", "Pilze", "Lunch"]),
-    "to-go-seitan-wrap": buildRecipe("to-go-seitan-wrap", "To-go Seitan-Wrap", "Donnerstagabend aus Montag-Seitanbasis.", "20 min", [
-      ["Seitan-Basis", 1, "Portion"],
-      ["Weizenmehl", 100, "g"],
-      ["Moehre", 80, "g"],
-      ["Tahin", 10, "g"],
-      ["Senf", 1, "TL"],
-    ], 610, 41, 80, 9, ["To-go", "Wrap", "Rest"]),
-    "tomaten-schnetzelpasta": buildRecipe("tomaten-schnetzelpasta", "Tomaten-Schnetzelpasta", "Freitagmittag nutzt Chili-Basis als Pastasauce.", "15 min", [
-      ["Vollkornspaghetti", 100, "g"],
-      ["Chili-Basis", 1, "Portion"],
-    ], 655, 36, 107, 5, ["Rest", "Pasta", "Lunch"]),
-    "mung-ruehrei-wrap": buildRecipe("mung-ruehrei-wrap", "Mung-Ruehrei Wrap", "Samstagmittag mit Mungbohnen, Tofu und Pilzen.", "25 min", [
-      ["Mungbohnen geschaelt", 70, "g"],
-      ["Tofu", 200, "g"],
-      ["Champignons", 125, "g"],
-      ["Weizenmehl", 100, "g"],
-      ["Hefeflocken", 5, "g"],
-    ], 720, 47, 82, 19, ["Wrap", "Protein", "Lunch"]),
-    "long-ride-couscous": buildRecipe("long-ride-couscous", "Long-Ride Couscous", "Schnelles Post-Ride-Dinner mit hoher Proteindichte.", "15 min", [
-      ["Couscous", 100, "g"],
-      ["Long-Ride Seitan-Basis", 1, "Portion"],
-      ["Soja-Schnetzel", 40, "g"],
-    ], 720, 44, 104, 7, ["Long Ride", "Recovery", "Dinner"]),
-    "apfel-soja-crumbles": buildRecipe("apfel-soja-crumbles", "Apfel Soja-Crumbles", "Salziger Protein-Snack plus Apfel.", "8 min", [
-      ["Soja-Schnetzel", 20, "g"],
-      ["Sojasauce", 5, "ml"],
-      ["Apfel", 150, "g"],
-    ], 180, 10, 28, 1, ["Snack", "Protein", "Schnell"]),
-    "soja-crumbles": buildRecipe("soja-crumbles", "Soja-Crumbles", "Salziger Protein-Snack ohne Nuss-Overeating.", "8 min", [
-      ["Soja-Schnetzel", 20, "g"],
-      ["Sojasauce", 5, "ml"],
-    ], 95, 10, 8, 1, ["Snack", "Protein", "Schnell"]),
-    "moehren-senf": buildRecipe("moehren-senf", "Moehren Senf", "Einfacher regionaler Crunch-Snack.", "3 min", [
-      ["Moehre", 180, "g"],
-      ["Senf", 1, "TL"],
-    ], 85, 2, 16, 1, ["Snack", "Regional", "Schnell"]),
-    "apfel-paranuss": buildRecipe("apfel-paranuss", "Apfel Paranuss", "Selenroutine am Sonntag.", "2 min", [
-      ["Apfel", 150, "g"],
-      ["Paranuss", 1, "Stk"],
-    ], 130, 2, 21, 4, ["Snack", "Selen", "Schnell"]),
+    "apfel-proteinshake": {
+      id: "apfel-proteinshake",
+      name: "Apfel Proteinshake",
+      use: "Nach morgendlichem Training oder bei sehr wenig Zeit.",
+      cookTime: "5 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "VEMONDO High Protein Sojadrink", amount: 300, unit: "ml" },
+        { ingredient: "Haferflocken", amount: 40, unit: "g" },
+        { ingredient: "Erbsenprotein", amount: 20, unit: "g" },
+        { ingredient: "Apfel", amount: 150, unit: "g" },
+        { ingredient: "Leinsamen", amount: 10, unit: "g" },
+      ],
+      preparation: [
+        "Apfel grob schneiden.",
+        "Alle Zutaten in den Mixer geben.",
+        "Fein mixen.",
+        "Direkt trinken.",
+      ],
+      tags: ["Schnell", "Proteinanker", "Frühstück"],
+      nutrition: {
+        kcal: 507,
+        protein: 38,
+        carbs: 54,
+        fat: 13,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "joghurt-oats-glas": {
+      id: "joghurt-oats-glas",
+      name: "Joghurt Oats Glas",
+      use: "Office-geeignet, schnell löffelbar und gut vorbereitbar.",
+      cookTime: "5 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Soja Classic Joghurt", amount: 250, unit: "g" },
+        { ingredient: "Haferflocken", amount: 40, unit: "g" },
+        { ingredient: "Erbsenprotein", amount: 20, unit: "g" },
+        { ingredient: "Apfel", amount: 120, unit: "g" },
+        { ingredient: "Leinsamen", amount: 10, unit: "g" },
+        { ingredient: "Sonnenblumenkerne", amount: 10, unit: "g" },
+      ],
+      preparation: [
+        "Apfel klein würfeln.",
+        "Joghurt und Erbsenprotein glatt rühren.",
+        "Hafer, Leinsamen und Apfel einrühren.",
+        "Mit Sonnenblumenkernen toppen und essen.",
+      ],
+      tags: ["Office", "Meal-Prep", "Frühstück"],
+      nutrition: {
+        kcal: 529,
+        protein: 35,
+        carbs: 51,
+        fat: 19,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "apfel-proteinbowl": {
+      id: "apfel-proteinbowl",
+      name: "Apfel Proteinbowl",
+      use: "Etwas sättigender als der Shake, aber weiter unter 5 Minuten.",
+      cookTime: "5 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Soja Classic Joghurt", amount: 250, unit: "g" },
+        { ingredient: "Haferflocken", amount: 30, unit: "g" },
+        { ingredient: "Erbsenprotein", amount: 20, unit: "g" },
+        { ingredient: "Apfel", amount: 150, unit: "g" },
+        { ingredient: "Leinsamen", amount: 10, unit: "g" },
+        { ingredient: "Sonnenblumenkerne", amount: 15, unit: "g" },
+      ],
+      preparation: [
+        "Apfel reiben oder fein schneiden.",
+        "Joghurt mit Erbsenprotein glatt rühren.",
+        "Hafer und Leinsamen unterheben.",
+        "Apfel und Sonnenblumenkerne daraufgeben.",
+      ],
+      tags: ["Sättigend", "Proteinanker", "Frühstück"],
+      nutrition: {
+        kcal: 537,
+        protein: 35,
+        carbs: 50,
+        fat: 21,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "tahin-apfel-shake": {
+      id: "tahin-apfel-shake",
+      name: "Tahin Apfel Shake",
+      use: "Mehr Fett und Calcium, sinnvoll an Krafttagen.",
+      cookTime: "5 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "VEMONDO High Protein Sojadrink", amount: 300, unit: "ml" },
+        { ingredient: "Haferflocken", amount: 30, unit: "g" },
+        { ingredient: "Erbsenprotein", amount: 20, unit: "g" },
+        { ingredient: "Tahin", amount: 15, unit: "g" },
+        { ingredient: "Apfel", amount: 150, unit: "g" },
+        { ingredient: "Leinsamen", amount: 10, unit: "g" },
+      ],
+      preparation: [
+        "Apfel grob schneiden.",
+        "Alle Zutaten in den Mixer geben.",
+        "Sehr fein mixen.",
+        "Sofort trinken.",
+      ],
+      tags: ["Calcium", "Krafttag", "Frühstück"],
+      nutrition: {
+        kcal: 559,
+        protein: 40,
+        carbs: 51,
+        fat: 21,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "overnight-oats-apfel": {
+      id: "overnight-oats-apfel",
+      name: "Overnight Oats Apfel",
+      use: "Vor dem Long Ride, wenn morgens kein Aufwand gewünscht ist.",
+      cookTime: "5 min aktiv, über Nacht ziehen",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Soja Classic Joghurt", amount: 200, unit: "g" },
+        { ingredient: "VEMONDO High Protein Sojadrink", amount: 250, unit: "ml" },
+        { ingredient: "Haferflocken", amount: 50, unit: "g" },
+        { ingredient: "Erbsenprotein", amount: 15, unit: "g" },
+        { ingredient: "Apfel", amount: 150, unit: "g" },
+        { ingredient: "Leinsamen", amount: 10, unit: "g" },
+      ],
+      preparation: [
+        "Joghurt, Sojadrink und Erbsenprotein verrühren.",
+        "Hafer und Leinsamen einrühren.",
+        "Apfel würfeln und unterheben.",
+        "Über Nacht kalt stellen.",
+      ],
+      tags: ["Long Ride", "Meal-Prep", "Frühstück"],
+      nutrition: {
+        kcal: 603,
+        protein: 41,
+        carbs: 65,
+        fat: 18,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "tomaten-mung-dal": {
+      id: "tomaten-mung-dal",
+      name: "Tomaten Mung Dal",
+      use: "Warmer Proteinanker für den Wochenstart.",
+      cookTime: "15 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Mungbohnen geschält gespalten", amount: 100, unit: "g" },
+        { ingredient: "Couscous", amount: 60, unit: "g" },
+        { ingredient: "Zwiebel", amount: 80, unit: "g" },
+        { ingredient: "Möhren", amount: 120, unit: "g" },
+        { ingredient: "Tomatenmark", amount: 25, unit: "g" },
+        { ingredient: "Sojasauce", amount: 10, unit: "ml" },
+        { ingredient: "Hefeflocken", amount: 10, unit: "g" },
+        { ingredient: "Jodsalz", amount: 3, unit: "g" },
+      ],
+      preparation: [
+        "Mungbohnen mit gewürfelter Zwiebel und Möhre kochen.",
+        "Tomatenmark und Sojasauce einrühren.",
+        "Couscous separat mit heißem Wasser quellen lassen.",
+        "Dal mit Hefeflocken abschmecken und mit Couscous servieren.",
+      ],
+      tags: ["Warm", "Lunch", "Proteinreich"],
+      nutrition: {
+        kcal: 718,
+        protein: 38,
+        carbs: 119,
+        fat: 3,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "couscous-soja-bowl": {
+      id: "couscous-soja-bowl",
+      name: "Couscous Soja Bowl",
+      use: "Mo Abend To-go, Di Mittag To-go.",
+      cookTime: "15 min",
+      batchServings: 2,
+      ingredients: [
+        { ingredient: "Soja Schnetzel", amount: 50, unit: "g" },
+        { ingredient: "Couscous", amount: 80, unit: "g" },
+        { ingredient: "Möhren", amount: 100, unit: "g" },
+        { ingredient: "Porree", amount: 50, unit: "g" },
+        { ingredient: "Zwiebel", amount: 50, unit: "g" },
+        { ingredient: "Sojasauce", amount: 15, unit: "ml" },
+        { ingredient: "Zitronensaft", amount: 10, unit: "ml" },
+        { ingredient: "Sesam", amount: 10, unit: "g" },
+        { ingredient: "Jodsalz", amount: 2, unit: "g" },
+      ],
+      preparation: [
+        "Couscous mit heißem Wasser quellen lassen.",
+        "Soja Schnetzel einweichen und ausdrücken.",
+        "Zwiebel, Möhre und Porree anbraten, Soja Schnetzel zugeben.",
+        "Mit Sojasauce und Zitrone abschmecken, über Couscous füllen und mit Sesam toppen.",
+      ],
+      tags: ["To-go", "Batch", "Lunch/Dinner"],
+      nutrition: {
+        kcal: 634,
+        protein: 38,
+        carbs: 83,
+        fat: 8,
+        estimated: true,
+        note: "Makros pro Portion als grobe Rezept-Schätzung.",
+      },
+    },
+    "seitan-pilz-pfanne": {
+      id: "seitan-pilz-pfanne",
+      name: "Seitan Pilz Pfanne",
+      use: "Mi Mittag To-go, Do Abend To-go.",
+      cookTime: "20 min",
+      batchServings: 2,
+      ingredients: [
+        { ingredient: "Seitan Pulver", amount: 70, unit: "g" },
+        { ingredient: "Champignons", amount: 125, unit: "g" },
+        { ingredient: "Kartoffeln", amount: 300, unit: "g" },
+        { ingredient: "Zwiebel", amount: 60, unit: "g" },
+        { ingredient: "Sojasauce", amount: 15, unit: "ml" },
+        { ingredient: "Zitronensaft", amount: 5, unit: "ml" },
+        { ingredient: "Jodsalz", amount: 3, unit: "g" },
+      ],
+      preparation: [
+        "Seitan aus Pulver nach Packlogik anrühren und kurz garen.",
+        "Kartoffeln würfeln und weich braten.",
+        "Zwiebel und Champignons separat kräftig anbraten.",
+        "Alles zusammen mit Sojasauce und Zitronensaft schwenken.",
+      ],
+      tags: ["To-go", "Batch", "Proteinreich"],
+      nutrition: {
+        kcal: 558,
+        protein: 62,
+        carbs: 68,
+        fat: 3,
+        estimated: true,
+        note: "Makros pro Portion als grobe Rezept-Schätzung.",
+      },
+    },
+    "tofu-lauch-polenta": {
+      id: "tofu-lauch-polenta",
+      name: "Tofu Lauch Polenta",
+      use: "Warme Mittagsmahlzeit für den Krafttag.",
+      cookTime: "15 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Bioland Tofu natur", amount: 200, unit: "g" },
+        { ingredient: "Polenta", amount: 80, unit: "g" },
+        { ingredient: "Porree", amount: 100, unit: "g" },
+        { ingredient: "Zwiebel", amount: 50, unit: "g" },
+        { ingredient: "VEMONDO High Protein Sojadrink", amount: 150, unit: "ml" },
+        { ingredient: "Hefeflocken", amount: 10, unit: "g" },
+        { ingredient: "Sojasauce", amount: 10, unit: "ml" },
+        { ingredient: "Jodsalz", amount: 2, unit: "g" },
+      ],
+      preparation: [
+        "Polenta in heißer Flüssigkeit mit Sojadrink cremig rühren.",
+        "Zwiebel und Porree anbraten.",
+        "Tofu würfeln und kräftig mitbraten.",
+        "Mit Sojasauce und Hefeflocken abschmecken und auf Polenta geben.",
+      ],
+      tags: ["Warm", "Krafttag", "Lunch"],
+      nutrition: {
+        kcal: 775,
+        protein: 52,
+        carbs: 84,
+        fat: 22,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "ofenkartoffeln-seitan": {
+      id: "ofenkartoffeln-seitan",
+      name: "Ofenkartoffeln Seitan",
+      use: "Protein- und Carb-Fokus für den Trainingsfreitag.",
+      cookTime: "20 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Seitan Pulver", amount: 70, unit: "g" },
+        { ingredient: "Kartoffeln", amount: 350, unit: "g" },
+        { ingredient: "Möhren", amount: 150, unit: "g" },
+        { ingredient: "Tahin", amount: 15, unit: "g" },
+        { ingredient: "Zitronensaft", amount: 10, unit: "ml" },
+        { ingredient: "Jodsalz", amount: 3, unit: "g" },
+      ],
+      preparation: [
+        "Kartoffeln und Möhren würfeln und im Ofen rösten.",
+        "Seitan aus Pulver anrühren und garen.",
+        "Tahin mit Zitrone und Wasser zur Sauce rühren.",
+        "Alles zusammen mit Jodsalz servieren.",
+      ],
+      tags: ["Warm", "Proteinreich", "Lunch"],
+      nutrition: {
+        kcal: 683,
+        protein: 63,
+        carbs: 85,
+        fat: 10,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "kartoffel-soja-pfanne": {
+      id: "kartoffel-soja-pfanne",
+      name: "Kartoffel Soja Pfanne",
+      use: "Entspannter Samstag, aber weiter proteinbewusst.",
+      cookTime: "15 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Soja Schnetzel", amount: 45, unit: "g" },
+        { ingredient: "Kartoffeln", amount: 350, unit: "g" },
+        { ingredient: "Möhren", amount: 120, unit: "g" },
+        { ingredient: "Zwiebel", amount: 60, unit: "g" },
+        { ingredient: "Tahin", amount: 15, unit: "g" },
+        { ingredient: "Hefeflocken", amount: 10, unit: "g" },
+        { ingredient: "Sojasauce", amount: 10, unit: "ml" },
+        { ingredient: "Jodsalz", amount: 2, unit: "g" },
+      ],
+      preparation: [
+        "Soja Schnetzel einweichen und ausdrücken.",
+        "Kartoffeln mit Zwiebel und Möhre anbraten.",
+        "Soja Schnetzel zugeben und würzen.",
+        "Mit Tahin, Hefeflocken und etwas Wasser cremig ziehen.",
+      ],
+      tags: ["Warm", "Lunch", "Proteinbewusst"],
+      nutrition: {
+        kcal: 627,
+        protein: 38,
+        carbs: 87,
+        fat: 10,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "recovery-couscous-bowl": {
+      id: "recovery-couscous-bowl",
+      name: "Recovery Couscous Bowl",
+      use: "Recovery-Dinner nach dem Long Ride.",
+      cookTime: "15 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Soja Schnetzel", amount: 60, unit: "g" },
+        { ingredient: "Couscous", amount: 90, unit: "g" },
+        { ingredient: "Mischgemüse", amount: 200, unit: "g" },
+        { ingredient: "Zwiebel", amount: 60, unit: "g" },
+        { ingredient: "Tomatenmark", amount: 20, unit: "g" },
+        { ingredient: "Sojasauce", amount: 15, unit: "ml" },
+        { ingredient: "Hefeflocken", amount: 10, unit: "g" },
+        { ingredient: "Jodsalz", amount: 3, unit: "g" },
+      ],
+      preparation: [
+        "Couscous mit heißem Wasser quellen lassen.",
+        "Soja Schnetzel einweichen und ausdrücken.",
+        "Zwiebel, Mischgemüse und Tomatenmark anbraten.",
+        "Soja Schnetzel zugeben, würzen und auf Couscous servieren.",
+      ],
+      tags: ["Recovery", "Dinner", "Carbs"],
+      nutrition: {
+        kcal: 726,
+        protein: 48,
+        carbs: 106,
+        fat: 4,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "apfel-kernmix": {
+      id: "apfel-kernmix",
+      name: "Apfel Kernmix",
+      use: "Schneller Snack mit Selen-Routine.",
+      cookTime: "3 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Apfel", amount: 150, unit: "g" },
+        { ingredient: "Sonnenblumenkerne", amount: 15, unit: "g" },
+        { ingredient: "Paranuss", amount: 1, unit: "Stk" },
+        { ingredient: "Jodsalz", amount: 1, unit: "g" },
+      ],
+      preparation: [
+        "Apfel waschen und schneiden.",
+        "Sonnenblumenkerne leicht salzen.",
+        "Mit 1 Paranuss zusammen verpacken.",
+      ],
+      tags: ["Snack", "Selen", "Schnell"],
+      nutrition: {
+        kcal: 198,
+        protein: 4,
+        carbs: 25,
+        fat: 11,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schaetzung aus den Zutaten summiert.",
+      },
+    },
+    "sojajoghurt-dip": {
+      id: "sojajoghurt-dip",
+      name: "Sojajoghurt Dip",
+      use: "Snack für Office oder entspannten Nachmittag.",
+      cookTime: "5 min",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Soja Classic Joghurt", amount: 150, unit: "g" },
+        { ingredient: "Möhren", amount: 150, unit: "g" },
+        { ingredient: "Zitronensaft", amount: 10, unit: "ml" },
+        { ingredient: "Hefeflocken", amount: 5, unit: "g" },
+        { ingredient: "Jodsalz", amount: 1, unit: "g" },
+      ],
+      preparation: [
+        "Joghurt mit Zitrone, Hefeflocken und Salz verrühren.",
+        "Möhren in Sticks schneiden.",
+        "Dip mit Möhren essen oder mitnehmen.",
+      ],
+      tags: ["Snack", "Office", "Calcium"],
+      nutrition: {
+        kcal: 159,
+        protein: 10,
+        carbs: 19,
+        fat: 4,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
+    "ride-snack-salzkartoffeln": {
+      id: "ride-snack-salzkartoffeln",
+      name: "Ride Snack Salzkartoffeln",
+      use: "Snack während des Long Ride.",
+      cookTime: "10 min aktiv",
+      batchServings: 1,
+      ingredients: [
+        { ingredient: "Kartoffeln", amount: 350, unit: "g" },
+        { ingredient: "Jodsalz", amount: 2, unit: "g" },
+      ],
+      preparation: [
+        "Kartoffeln weich kochen.",
+        "Pellen oder halbieren.",
+        "Leicht salzen und in Box packen.",
+      ],
+      tags: ["Ride", "Snack", "Carbs"],
+      nutrition: {
+        kcal: 270,
+        protein: 7,
+        carbs: 60,
+        fat: 0,
+        estimated: true,
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
+      },
+    },
   },
   templates: [
-    { name: "Hafer-Shake Apfel", use: "Basis fuer Mo, Fr und Sa mit Apfel-Zimt- oder Vanille-Varianz.", base: "Hafer + Haferdrink + Wasser + Erbsenprotein + Apfel + Leinsamen" },
-    { name: "Hafer-Shake Kaffee", use: "Fuer Di und Fr geeignet; bitter-suess ohne Zusatzkauf.", base: "Hafer + Haferdrink + Wasser + Erbsenprotein + Instantkaffee + Leinsamen" },
-    { name: "Hafer-Shake Karotte", use: "Mit Zimt, ergibt karottenkuchenartige Note.", base: "Hafer + Haferdrink + Wasser + Erbsenprotein + Moehre + Apfel + Leinsamen" },
-    { name: "Hafer-Shake Kakao", use: "Fuer Donnerstag; salzige Snacks spaeter einplanen.", base: "Hafer + Haferdrink + Wasser + Erbsenprotein + Kakao + Leinsamen" },
-    { name: "Hafer-Shake gross", use: "Sonntag groesser fuer Long-Ride-Tag.", base: "Mehr Hafer + Haferdrink + Wasser + Erbsenprotein + Apfel + Leinsamen" },
+    {
+      name: "Proteinshake Apfel-Hafer",
+      use: "Nach morgendlichem Training oder bei sehr wenig Zeit.",
+      base: "HP-Sojadrink + Hafer + Erbsenprotein + Apfel + Leinsamen",
+    },
+    {
+      name: "Joghurt-Oats Glas",
+      use: "Office-geeignet, schnell löffelbar, gut vorbereitbar.",
+      base: "Sojajoghurt + Hafer + Erbsenprotein + Apfel + Leinsamen",
+    },
+    {
+      name: "Proteinbowl Apfel",
+      use: "Etwas sättigender als der Shake, aber weiter unter 5 Minuten.",
+      base: "Sojajoghurt + Hafer + Erbsenprotein + Apfel + Sonnenblumenkerne",
+    },
+    {
+      name: "Tahin-Shake Apfel",
+      use: "Mehr Fett und Calcium, sinnvoll an Krafttagen.",
+      base: "HP-Sojadrink + Tahin + Hafer + Erbsenprotein + Apfel",
+    },
+    {
+      name: "Overnight Oats Apfel",
+      use: "Vor dem Long Ride, wenn morgens kein Aufwand gewünscht ist.",
+      base: "Sojajoghurt + HP-Sojadrink + Hafer + Erbsenprotein + Apfel",
+    },
   ],
   mealPrepBlock: {
     dayShort: "SO",
-    durationMin: 90,
+    durationMin: 60,
     plan: [
-      "Long-Ride Seitan-Basis fuer 3 Portionen vorkochen.",
-      "3 Fruehstuecks-Trockensets aus Hafer, Leinsamen und Gewuerzen vorbereiten.",
-      "Moehren-Zwiebel-Basis fuer 2 Portionen vorbereiten.",
+      "Seitan-Basis für 2 Portionen vorbereiten und dämpfen.",
+      "Kartoffeln für Ride-Snack vorkochen und salzen.",
+      "Couscous-Basis für Recovery Bowl vorbereiten.",
+      "1 Blech Möhren/Kartoffeln rösten als Basis für Sonntagabend und Wochenstart danach.",
     ],
-    benefits: ["Sonntag Abend", "Folgewoche Montag", "Folgewoche Dienstag"],
+    benefits: [
+      "So Snack",
+      "So Abend",
+      "Mo Folge-Woche ausserhalb dieses Plans",
+    ],
   },
   leftoverRules: [
-    { sourceMealName: "Montag Mittag Seitan-Basis", amount: "1 Portion", targetDayShort: "DO", note: "Als To-go Seitan-Wrap nutzen." },
-    { sourceMealName: "Mittwoch Mittag Chili-Basis", amount: "1 Portion", targetDayShort: "FR", note: "Als Tomaten-Schnetzelpasta nutzen." },
-    { sourceMealName: "Sonntag Meal-Prep-Block Long-Ride Seitan-Basis", amount: "2 Portionen", targetDayShort: "SO", note: "Fuer Folgewoche Montag und Dienstag kaltstellen oder einfrieren." },
+    {
+      sourceMealName: "Couscous Soja Bowl",
+      amount: "2 Portionen gekocht",
+      targetDayShort: "MO",
+      note: "Direkt als Batch kochen; Montagabend ist die erste Portion.",
+    },
+    {
+      sourceMealName: "Couscous Soja Bowl",
+      amount: "2 Portionen gekocht",
+      targetDayShort: "DI",
+      note: "Zweite Portion lässt sich Dienstag in der Mikrowelle gut nutzen.",
+    },
+    {
+      sourceMealName: "Seitan Pilz Pfanne",
+      amount: "2 Portionen gekocht",
+      targetDayShort: "MI",
+      note: "Mittwochs frisch kochen, die erste Portion direkt als To-go nutzen.",
+    },
+    {
+      sourceMealName: "Seitan Pilz Pfanne",
+      amount: "2 Portionen gekocht",
+      targetDayShort: "DO",
+      note: "Donnerstag kalt oder aufgewärmt als Batch-Rest einplanen.",
+    },
+    {
+      sourceMealName: "Sonntags-Meal-Prep",
+      amount: "2 Basisportionen",
+      targetDayShort: "SO",
+      note: "Verbessert vor allem Sonntagabend und den Wochenstart danach.",
+    },
   ],
   externalMealGuidance: {
     title: "Externes Meal",
-    kcalRange: "650 kcal Abend / 800 kcal Sonntagmittag",
-    proteinRange: "25 g Abend / 30 g Sonntagmittag",
+    kcalRange: "650-800 kcal",
+    proteinRange: "25-30 g Protein",
     assumptions: [
-      "Externe Abendmahlzeiten wurden mit 650 kcal und 25 g Protein angesetzt.",
-      "Externes Sonntagsmittag wurde mit 800 kcal und 30 g Protein angesetzt.",
-      "Makros bleiben bewusst als Planannahme markiert.",
+      "Für die Wochenlogik als vegan und proteinbewusst angenommen.",
+      "Makros bleiben absichtlich als Range markiert, damit keine Scheingenauigkeit entsteht.",
+      "Calcium und Jod sind extern weniger robust als in den selbst gekochten Meals.",
     ],
     tips: [
-      "Gezielt Tofu, Bohnen, Linsen oder Seitan waehlen.",
-      "Wenn das Meal proteinarm ausfaellt, 20-30 g Erbsenprotein in Wasser ergaenzen.",
-      "Jodsalz und Calcium bleiben extern die groessten Unsicherheitsfaktoren.",
+      "Gezielt Tofu, Bohnen, Linsen oder Seitan wählen.",
+      "Wenn das Meal proteinarm ausfällt, zusätzlich 250-350 ml HP-Sojadrink einplanen.",
+      "Jodsalz und Calcium sind extern die größten Unsicherheitsfaktoren.",
     ],
-    warning: "Externe Mahlzeiten sind die groesste Unsicherheitsquelle dieser Woche. Fokus auf Protein, nicht nur auf Kalorien.",
+    warning:
+      "Externe Mahlzeiten sind die größte Unsicherheitsquelle dieser Woche. Fokus auf Protein, nicht nur auf Kalorien.",
   },
   criticalNutrientTips: [
-    { nutrient: "Calcium", status: "attention", action: "Calcium ueber angereicherten Haferdrink und ALTAPHARMA Calcium absichern." },
-    { nutrient: "Jod", status: "attention", action: "Jodsalz konsequent in Hauptmahlzeiten nutzen; sonst entsteht eine Luecke." },
-    { nutrient: "Selen", status: "good", action: "Taeglich genau 1 Paranuss, nicht mehrere Paranuesse stapeln." },
-    { nutrient: "B12", status: "supplement", action: "Montag und Donnerstag morgens laut Packung supplementieren." },
-    { nutrient: "Vitamin D", status: "supplement", action: "Taeglich 1 Perle zum Fruehstueck als April-Annahme." },
+    {
+      nutrient: "Calcium",
+      status: "attention",
+      action: "Täglich 500-700 ml HP-Sojadrink sicherstellen, sonst fällt Calcium schnell ab.",
+    },
+    {
+      nutrient: "Jod",
+      status: "attention",
+      action: "Jodsalz konsequent in gekochten Meals nutzen; extern ist Jod unsicher.",
+    },
+    {
+      nutrient: "Vitamin D",
+      status: "supplement",
+      action: "Anfang April weiter supplementieren, besonders bei wenig Sonne.",
+    },
+    {
+      nutrient: "B12",
+      status: "good",
+      action: "Supplement täglich bzw. nach fester Routine weiterführen.",
+    },
   ],
   budget: {
     budgetHardCap: 25,
-    shoppingCost: 15.28,
-    pantryShare: 8.6,
-    totalCost: 23.88,
-    status: "Innerhalb des Budgets, aber nur knapp und nur wegen starker Nutzung vorhandener Bulk-Produkte.",
-    note: "Budgetpuffer 1.12 EUR. Preise werden aus der gelieferten Referenz uebernommen.",
-  },
-  shoppingAndReview: {
-    pantry: [
-      { product: "Jodsalz", amount: "vorhanden", use: "Jodabsicherung" },
-      { product: "Weizenmehl Typ 405", amount: "2000 g", use: "Wraps und Fladen" },
-      { product: "Tahin", amount: "1 Glas", use: "Dressing und Wraps" },
-      { product: "Hafer", amount: "500 g", use: "Shakes" },
-      { product: "Couscous", amount: "vorhanden", use: "Bowls und schnelle Kohlenhydrate" },
-      { product: "Tomatenmark", amount: "150 g", use: "Saucen" },
-      { product: "Leinsamen", amount: "150 g", use: "Omega-3" },
-      { product: "Sojasauce", amount: "200 ml", use: "Wuerzung" },
-      { product: "Lauch", amount: "170 g", use: "Pasta und Dal" },
-      { product: "Mischgemuese", amount: "400 g", use: "Reserve falls externe Mahlzeiten ausfallen" },
-      { product: "VITAM Hefeflocken MAXI", amount: "2500 g", use: "Riboflavin und Umami" },
-      { product: "planeo Soja Schnetzel", amount: "10000 g", use: "Proteinanker" },
-      { product: "buxtrade Erbsenprotein", amount: "5000 g", use: "Morgenshakes" },
-      { product: "Mungbohnen geschaelt gespalten", amount: "5000 g", use: "Dal und Ruehrei" },
-      { product: "planeo Seitan Pulver", amount: "5000 g", use: "Proteinanker" },
-      { product: "altapharma Vitamin B12 hochdosiert", amount: "vorhanden", use: "B12-Absicherung" },
-      { product: "altapharma Vitamin D3 2.000 I.E.", amount: "vorhanden", use: "Vitamin-D-Absicherung" },
-      { product: "GENUSS PLUS Paranusskerne", amount: "vorhanden", use: "Selen" },
-      { product: "buxtrade Kreatin Monohydrat Pulver", amount: "vorhanden", use: "Kraft- und Ausdauerunterstuetzung" },
-    ],
-    stores: [
-      {
-        store: "Lidl",
-        items: [
-          { product: "Aepfel", plannedAmount: "1000 g", priceReference: "12.03.2026 Lidl Apfel rot, suess-saeuerl 2 kg = 3.29 EUR", weeklyCost: 1.65, use: ["Shakes", "Snacks"] },
-          { product: "Bio Moehren", plannedAmount: "1000 g", priceReference: "12.03.2026 Lidl Bio Moehren 2 Einheiten = 2.98 EUR", weeklyCost: 1.49, use: ["Dal", "Bowls", "Wraps", "Snacks"] },
-          { product: "Bio Zwiebel rot 500 g", plannedAmount: "500 g", priceReference: "12.03.2026 Lidl Bio Zwiebel rot 500 g = 1.29 EUR", weeklyCost: 1.29, use: ["Saucen", "Pfannen"] },
-          { product: "Porree", plannedAmount: "2 Stueck", priceReference: "12.03.2026 Lidl Porree 2 Stueck = 0.69 EUR", weeklyCost: 0.69, use: ["Pasta", "Dal"] },
-          { product: "Bio Champignons", plannedAmount: "250 g", priceReference: "12.03.2026 Lidl Bio Champignons 250 g = 1.89 EUR", weeklyCost: 1.89, use: ["Donnerstag Mittag", "Samstag Mittag"] },
-          { product: "Bioland Tofu natur", plannedAmount: "400 g", priceReference: "12.03.2026 Lidl Bioland Tofu natur 400 g = 2.29 EUR", weeklyCost: 2.29, use: ["Dienstag Mittag", "Samstag Mittag"] },
-          { product: "Haferdrink", plannedAmount: "2 Liter", priceReference: "12.03.2026 Lidl Haferdrink 1,8% 2 Stueck = 1.70 EUR", weeklyCost: 1.7, use: ["Shakes"] },
-          { product: "Kidney Bohnen", plannedAmount: "2 Dosen", priceReference: "12.03.2026 Lidl Kidney Bohnen 2 Stueck = 1.58 EUR", weeklyCost: 1.58, use: ["Chili-Basis"] },
-          { product: "Bio Geh.Tomat.Knob.", plannedAmount: "2 Dosen", priceReference: "12.03.2026 Lidl Bio Geh.Tomat.Knob. 2 Stueck = 1.50 EUR", weeklyCost: 1.5, use: ["Chili-Basis", "Long-Ride Seitan-Basis"] },
-          { product: "Bio Spaghetti Vollk.", plannedAmount: "500 g", priceReference: "12.03.2026 Lidl Bio Spaghetti Vollk. 500 g = 0.85 EUR", weeklyCost: 0.85, use: ["Montag Mittag", "Freitag Mittag"] },
-        ],
-      },
-      {
-        store: "Rossmann",
-        items: [
-          { product: "ALTAPHARMA CALCIUM", plannedAmount: "7 Tabletten", priceReference: "12.03.2026 Rossmann ALTAPHARMA CALCIUM 10 Stueck = 0.50 EUR", weeklyCost: 0.35, use: ["Taegliche Calcium-Absicherung"] },
-        ],
-      },
-    ],
-    bulkPantryDetails: [
-      { product: "Erbsenprotein", plannedAmount: "210 g", costShare: 2.52, priceStatus: "belegt" },
-      { product: "Soja-Schnetzel", plannedAmount: "290 g", costShare: 1.74, priceStatus: "belegt" },
-      { product: "Seitan-Pulver", plannedAmount: "160 g", costShare: 0.96, priceStatus: "belegt" },
-      { product: "Mungbohnen geschaelt", plannedAmount: "140 g", costShare: 1.09, priceStatus: "belegt" },
-      { product: "Hefeflocken", plannedAmount: "20 g", costShare: 0.48, priceStatus: "belegt" },
-      { product: "Paranuesse", plannedAmount: "35 g", costShare: 1.05, priceStatus: "belegt" },
-      { product: "Hafer, Couscous, Weizenmehl, Tahin, Leinsamen", plannedAmount: "Wochenanteil", costShare: 0.76, priceStatus: "geschaetzt" },
-    ],
-    costDrivers: ["Proteinabsicherung ueber Isolate und Bulk", "Tofu als Abwechslungsanker", "Frischware trotz engem Budget"],
-    priceJumpAlternatives: [
-      "Tofu streichen und durch mehr Mung-Ruehrei ersetzen",
-      "Champignons streichen und Mischgemuese aus dem Tiefkuehlfach nutzen",
-      "Apfelmenge um 300-400 g senken und mehr Moehren in die Shakes geben",
-    ],
-    nutrients: [
-      { nutrient: "Kalorien", target: "Durchschnitt 2090 kcal/Tag", planValue: "Durchschnitt 2081 kcal/Tag", rating: "nahe Ziel", mainSources: ["Hafer", "Couscous", "Spaghetti", "externe Mahlzeiten"], correction: "An Di und Fr bei Hunger 1 Extra-Apfel oder 1 zusaetzlicher Wrap." },
-      { nutrient: "Protein", target: "110 g/Tag", planValue: "Durchschnitt 112 g/Tag", rating: "gedeckt", mainSources: ["Erbsenprotein", "Seitan", "Soja-Schnetzel", "Tofu", "Mungbohnen"], correction: "Falls extern proteinarm gegessen wird, abends 20-30 g Erbsenprotein in Wasser ergaenzen." },
-      { nutrient: "Kohlenhydrate", target: "ausdauerorientiert hoch", planValue: "Durchschnitt 253 g/Tag", rating: "gedeckt", mainSources: ["Hafer", "Couscous", "Spaghetti", "Aepfel", "Moehren"], correction: "Vor Long Ride bei Bedarf Fruehstueck um 20 g Hafer erhoehen." },
-      { nutrient: "Fett", target: "moderat", planValue: "Durchschnitt 57 g/Tag", rating: "gedeckelt", mainSources: ["Leinsamen", "Tahin", "Mandeln", "Tofu"], correction: "Nusssnacks nicht frei laufen lassen; salzige Soja-Crumbles priorisieren." },
-      { nutrient: "Ballaststoffe", target: "mindestens 30 g/Tag", planValue: "Durchschnitt 42 g/Tag", rating: "robust gedeckt", mainSources: ["Hafer", "Moehren", "Bohnen", "Vollkornspaghetti", "Leinsamen"], correction: "Bei Magenstress vor harten Einheiten den Moehrenanteil morgens leicht senken." },
-      { nutrient: "Omega-3", target: "mindestens 2 g ALA/Tag", planValue: "Durchschnitt 2.7 g ALA/Tag", rating: "gedeckt", mainSources: ["Leinsamen"], correction: "15 g Leinsamen taeglich beibehalten." },
-      { nutrient: "Calcium", target: "1000 mg/Tag", planValue: "Durchschnitt 1070 mg/Tag", rating: "gedeckt mit Supplementstuetze", mainSources: ["Haferdrink", "ALTAPHARMA CALCIUM", "Tahin", "Tofu"], correction: "Ohne Calciumtabletten waere die Deckung im Budget unsicher." },
-      { nutrient: "Eisen", target: "mindestens 15 mg/Tag", planValue: "Durchschnitt 18.5 mg/Tag", rating: "gedeckt", mainSources: ["Seitan", "Soja-Schnetzel", "Mungbohnen", "Hafer", "Tahin"], correction: "Zu eisenreichen Mahlzeiten Aepfel oder Moehren mitessen; Kaffee nicht direkt dazu." },
-      { nutrient: "Zink", target: "mindestens 10 mg/Tag", planValue: "Durchschnitt 11.3 mg/Tag", rating: "gedeckt", mainSources: ["Hafer", "Seitan", "Soja-Schnetzel", "Tahin", "Weizen"], correction: "Bei sinkender Mehl- oder Tahinmenge waere Zink der erste Wackelkandidat." },
-      { nutrient: "Jod", target: "150 ug/Tag", planValue: "Durchschnitt 160 ug/Tag", rating: "nur bei konsequentem Jodsalz gedeckt", mainSources: ["Jodsalz"], correction: "Taeglich in den Hauptmahlzeiten salzen; sonst entsteht eine Luecke." },
-      { nutrient: "Selen", target: "mindestens 60 ug/Tag", planValue: "Durchschnitt 80 ug/Tag", rating: "gedeckt", mainSources: ["1 Paranuss taeglich"], correction: "Nicht mehrere Paranuesse taeglich stapeln." },
-      { nutrient: "B12", target: "robuste Supplementdeckung", planValue: "gedeckt ueber Supplement", rating: "nur via Supplement robust", mainSources: ["altapharma Vitamin B12 hochdosiert"], correction: "Lebensmittel allein reichen hier nicht." },
-      { nutrient: "Vitamin D", target: "Supplementabsicherung in April", planValue: "gedeckt ueber Supplement", rating: "nur via Supplement robust", mainSources: ["altapharma Vitamin D3 2.000 I.E."], correction: "Ohne Supplement bleibt April unsicher." },
-      { nutrient: "Riboflavin", target: "mindestens 1.4 mg/Tag", planValue: "Durchschnitt 1.7 mg/Tag", rating: "gedeckt", mainSources: ["Hafer", "Champignons", "Hefeflocken", "Mandeln"], correction: "Beim Streichen von Pilzen und Hefeflocken sinkt die Reserve deutlich." },
-    ],
-    review: {
-      strengths: [
-        "Protein wird trotz 25-EUR-Rahmen erreicht.",
-        "Regional-saisonale Frischware bleibt sichtbar drin.",
-        "To-go-Bedarf ist sauber abgedeckt.",
-        "Abendliches Nusssnacken wird durch salzige Protein-Snacks systemisch entschaerft.",
-      ],
-      gapsAndActions: [
-        "Calcium ist ohne Supplement und angereicherten Drink zu wacklig; deshalb bewusst abgesichert.",
-        "Jod haengt fast vollstaendig am Jodsalz; das muss praktisch wirklich genutzt werden.",
-        "Externe Mahlzeiten bleiben die groesste Unsicherheit; bei sehr kohlenhydratlastigen Restaurantgerichten Protein per Shake nachziehen.",
-      ],
-      criticismAndCounterpoints: [
-        "Der Plan bleibt nur unter 25 EUR wegen grosser Bestaende an Erbsenprotein, Seitan und Soja-Schnetzeln; als Stand-alone-Wocheneinkauf waere er so nicht replizierbar.",
-        "Das Proteinziel wird funktional erreicht, aber kulinarisch teilweise ueber Isolate und texturierte Produkte statt ueber ganze Lebensmittel.",
-        "Hohe Abwechslung und Kostenminimierung ziehen in verschiedene Richtungen; noch guenstiger waere ein repetitiverer Plan.",
-        "Die Kalorien auf Di, Fr und So haengen relativ stark an den angenommenen externen Mahlzeiten; real kann der Plan dort unter oder ueber Ziel landen.",
-        "Calcium und Vitamin D sind hier nicht elegant, sondern pragmatisch geloest; wer Lebensmittelzentrierung priorisiert, muesste das Budget oder die Wiederholungen erhoehen.",
-      ],
-    },
+    shoppingCost: 18.79,
+    pantryShare: 6.18,
+    totalCost: 24.97,
+    status: "Knapp innerhalb des Caps auf Basis bepreister Bestände.",
+    note:
+      "Unbepreiste Pantryartikel wurden nicht voll monetarisiert. Reale Vollkosten können leicht über 25 EUR liegen.",
   },
 };
 
@@ -1189,7 +1323,7 @@ export function getSelectedDayPrepNotes(plan: NutritionPlan, day: NutritionDay) 
 }
 
 export function getPlannedMacrosForDay(plan: NutritionPlan, day: NutritionDay) {
-  const recipeTotals = day.meals.reduce(
+  return day.meals.reduce(
     (totals, slot) => {
       const meal = getMealById(plan, slot.mealId);
 
@@ -1206,12 +1340,6 @@ export function getPlannedMacrosForDay(plan: NutritionPlan, day: NutritionDay) {
     },
     { kcal: 0, protein: 0, carbs: 0, fat: 0 },
   );
-
-  return {
-    ...recipeTotals,
-    kcal: day.plannedKcal,
-    protein: day.plannedProtein,
-  };
 }
 
 export function getExternalMealCount(day: NutritionDay) {

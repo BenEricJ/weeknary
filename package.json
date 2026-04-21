@@ -4,8 +4,16 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite"
+    "build": "vite build --configLoader native",
+    "dev": "vite --configLoader native",
+    "typecheck": "tsc --noEmit",
+    "validate:workspace": "node scripts/validate-workspace.mjs",
+    "validate:phase15": "node scripts/validate-phase15.mjs",
+    "validate:phase16:live": "node scripts/validate-phase16-live.mjs",
+    "validate:phase20:live:trusted": "node scripts/validate-live-trust-prereqs.mjs && node scripts/validate-phase16-live.mjs",
+    "validate:phase21:live:trusted": "npm run validate:phase20:live:trusted",
+    "validate:phase19:browser": "node scripts/validate-phase19-browser.mjs",
+    "validate:phase20:create-hub": "node scripts/validate-phase20-create-hub.mjs"
   },
   "dependencies": {
     "@popperjs/core": "2.11.8",
@@ -35,6 +43,7 @@
     "@radix-ui/react-toggle": "1.1.2",
     "@radix-ui/react-toggle-group": "1.1.2",
     "@radix-ui/react-tooltip": "1.1.8",
+    "@supabase/supabase-js": "^2.103.3",
     "canvas-confetti": "1.9.4",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
@@ -64,6 +73,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
+    "@types/node": "^22.15.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-legacy": "^8.0.1",
@@ -71,6 +81,7 @@
     "tailwindcss": "4.1.12",
     "typescript": "^6.0.2",
     "vite": "6.3.5",
+    "supabase": "^2.92.0",
     "vite-plugin-pwa": "^1.2.0"
   },
   "pnpm": {

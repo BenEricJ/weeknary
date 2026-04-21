@@ -474,7 +474,7 @@ export function HomeView() {
         day={{ ...selectedDay, allDayEvents: [] }}
         categoryMeta={CATEGORY_META}
         onOpen={(entry) =>
-          openScheduleEntry(selectedDay, entry)
+          openScheduleEntry(selectedDay, entry as ScheduleEntry)
         }
         onEdit={(eventId) =>
           openEventEditor(selectedDay.date, eventId)

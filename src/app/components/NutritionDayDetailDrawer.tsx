@@ -17,6 +17,19 @@ import {
   type NutritionPlan,
 } from "../data/nutritionPlan";
 
+type DetailValueItem = {
+  label: string;
+  value: string;
+  strong?: boolean;
+  muted?: boolean;
+  indent?: boolean;
+};
+
+type DetailValueGroup = {
+  title: string | null;
+  items: DetailValueItem[];
+};
+
 const DEFAULT_EXTERNAL_ESTIMATE: MacroEstimate = {
   kcal: 725,
   protein: 28,
@@ -95,7 +108,6 @@ export function NutritionDayDetailDrawer({
     () => (day ? getMealSummaries(plan, day) : []),
     [day, plan],
   );
-  const weeklyReviewRows = useMemo(() => getNonDuplicatedReviewRows(plan), [plan]);
   const activeMealSummary = mealSummaries.find((meal) => meal.slotType === activeSlotType) ?? null;
 
   if (!day || !plannedMacros || !estimatedTotals || !detailBreakdown) {
@@ -120,7 +132,7 @@ export function NutritionDayDetailDrawer({
       target: estimatedTotals.fat,
     },
   ];
-  const detailGroups = [
+  const detailGroups: DetailValueGroup[] = [
     {
       title: null,
       items: [
@@ -426,40 +438,6 @@ export function NutritionDayDetailDrawer({
 
                   <div className="border-t border-[#ECEBE6] pt-4">
                     <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                      Wochenreview
-                    </p>
-                    <div className="space-y-3">
-                      {weeklyReviewRows.map((row) => (
-                        <div key={row.nutrient} className="rounded-[14px] bg-[#F7F6F1] p-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-[13px] font-bold text-gray-900">
-                                {row.nutrient}
-                              </p>
-                              <p className="mt-0.5 text-[11px] leading-snug text-gray-500">
-                                {row.target} | {row.planValue}
-                              </p>
-                            </div>
-                            <span className="shrink-0 rounded-[8px] bg-white px-2 py-1 text-[10px] font-bold text-[#4A634A]">
-                              {row.rating}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-[11px] leading-snug text-gray-600">
-                            Quellen: {row.mainSources.join(", ")}. {row.correction}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-4 space-y-3">
-                      <ReviewInfoList title="Staerken" items={plan.shoppingAndReview.review.strengths} />
-                      <ReviewInfoList title="Luecken & Massnahmen" items={plan.shoppingAndReview.review.gapsAndActions} />
-                      <ReviewInfoList title="Kritik & Kontrapunkte" items={plan.shoppingAndReview.review.criticismAndCounterpoints} />
-                    </div>
-                  </div>
-
-                  <div className="border-t border-[#ECEBE6] pt-4">
-                    <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
                       Kritische Mikronaehrstoffe
                     </p>
                     <div className="mb-4 flex flex-wrap gap-2">
@@ -661,41 +639,6 @@ function DetailValueRow({
   );
 }
 
-function ReviewInfoList({
-  title,
-  items,
-}: {
-  title: string;
-  items: string[];
-}) {
-  return (
-    <div className="rounded-[14px] bg-[#F7F6F1] p-3">
-      <p className="text-[12px] font-bold text-gray-900">{title}</p>
-      <div className="mt-2 space-y-2">
-        {items.map((item) => (
-          <p key={`${title}-${item}`} className="text-[11px] leading-snug text-gray-600">
-            {item}
-          </p>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function getNonDuplicatedReviewRows(plan: NutritionPlan) {
-  const criticalNutrients = new Set(
-    plan.criticalNutrientTips.map((tip) => normalizeNutrientName(tip.nutrient)),
-  );
-
-  return plan.shoppingAndReview.nutrients.filter(
-    (row) => !criticalNutrients.has(normalizeNutrientName(row.nutrient)),
-  );
-}
-
-function normalizeNutrientName(value: string) {
-  return value.trim().toLowerCase();
-}
-
 function getMealSummaries(plan: NutritionPlan, day: NutritionDay) {
   return MEAL_SLOT_ORDER.map((slotType) => {
     const slot = day.meals.find((meal) => meal.slot === slotType);
@@ -759,7 +702,7 @@ function getEstimatedBreakdownForDay(plan: NutritionPlan, day: NutritionDay): Nu
 }
 
 function getPlannedMacrosForDrawer(plan: NutritionPlan, day: NutritionDay): MacroEstimate {
-  const recipeTotals = day.meals.reduce(
+  return day.meals.reduce(
     (totals, slot) => {
       const meal = getMealById(plan, slot.mealId);
       if (!meal?.nutrition) {
@@ -775,12 +718,6 @@ function getPlannedMacrosForDrawer(plan: NutritionPlan, day: NutritionDay): Macr
     },
     { kcal: 0, protein: 0, carbs: 0, fat: 0 },
   );
-
-  return {
-    ...recipeTotals,
-    kcal: day.plannedKcal,
-    protein: day.plannedProtein,
-  };
 }
 
 function getEstimatedNutritionForSlot(

@@ -4,13 +4,11 @@ import {
   AlertTriangle,
   Apple,
   CalendarDays,
-  CheckSquare,
   ChevronLeft,
   Flame,
   Leaf,
   MoreHorizontal,
   MoonStar,
-  Square,
   Sparkles,
   Sun,
   Soup,
@@ -29,7 +27,6 @@ import {
 } from "../components/ui/drawer";
 import {
   MEAL_SLOT_ORDER,
-  NUTRITION_PLAN,
   getDayByDate,
   getExternalMealCount,
   getMealById,
@@ -40,9 +37,9 @@ import {
   getWeekDays,
   type MealRecipe,
   type MealSlotType,
-  type ShoppingListItem,
-  type ShoppingStore,
 } from "../data/nutritionPlan";
+import { useActiveMealPlan } from "../mealPlan/useActiveMealPlan";
+import { MealPlanRuntimePanel } from "../mealPlan/MealPlanRuntimePanel";
 
 const SLOT_META: Record<
   MealSlotType,
@@ -95,16 +92,17 @@ type TopStatDetails = {
 };
 
 export function NutritionView() {
-  const [selectedDate, setSelectedDate] = useState(() => getTodayPlanDate(NUTRITION_PLAN));
+  const activeMealPlan = useActiveMealPlan();
+  const nutritionPlan = activeMealPlan.legacyPlan;
+  const [selectedDate, setSelectedDate] = useState(() => getTodayPlanDate(nutritionPlan));
   const [isDayDetailsOpen, setIsDayDetailsOpen] = useState(false);
   const [selectedSlotType, setSelectedSlotType] = useState<MealSlotType | null>(null);
   const [selectedTopStat, setSelectedTopStat] = useState<TopStatDetails | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isWeekInfoOpen, setIsWeekInfoOpen] = useState(false);
 
   const selectedDay = useMemo(
-    () => getDayByDate(NUTRITION_PLAN, selectedDate),
-    [selectedDate],
+    () => getDayByDate(nutritionPlan, selectedDate),
+    [nutritionPlan, selectedDate],
   );
   const selectedSlot = useMemo(
     () =>
@@ -114,22 +112,22 @@ export function NutritionView() {
     [selectedDay, selectedSlotType],
   );
   const selectedMeal = useMemo(
-    () => getMealById(NUTRITION_PLAN, selectedSlot?.mealId),
-    [selectedSlot],
+    () => getMealById(nutritionPlan, selectedSlot?.mealId),
+    [nutritionPlan, selectedSlot],
   );
   const plannedMacros = useMemo(
-    () => getPlannedMacrosForDay(NUTRITION_PLAN, selectedDay),
-    [selectedDay],
+    () => getPlannedMacrosForDay(nutritionPlan, selectedDay),
+    [nutritionPlan, selectedDay],
   );
   const externalMealCount = useMemo(
     () => getExternalMealCount(selectedDay),
     [selectedDay],
   );
   const prepNotes = useMemo(
-    () => getSelectedDayPrepNotes(NUTRITION_PLAN, selectedDay),
-    [selectedDay],
+    () => getSelectedDayPrepNotes(nutritionPlan, selectedDay),
+    [nutritionPlan, selectedDay],
   );
-  const weekDays = useMemo(() => getWeekDays(NUTRITION_PLAN), []);
+  const weekDays = useMemo(() => getWeekDays(nutritionPlan), [nutritionPlan]);
 
   useEffect(() => {
     setIsDayDetailsOpen(false);
@@ -146,17 +144,10 @@ export function NutritionView() {
   );
   const basisBreakdownLines = useMemo(
     () =>
-      [
-        `Planwert inklusive externer Annahmen: ${selectedDay.plannedKcal} kcal und ${selectedDay.plannedProtein} g Protein.`,
-        `Basis ${selectedDay.kcalBasis} kcal + Training ${selectedDay.kcalTrainingPlus} kcal. ${selectedDay.hint}.`,
-        ...selectedDay.meals.flatMap((slot) => {
-        const meal = getMealById(NUTRITION_PLAN, slot.mealId);
+      selectedDay.meals.flatMap((slot) => {
+        const meal = getMealById(nutritionPlan, slot.mealId);
 
-        if (slot.isExternal) {
-          return [`${getMealSlotLabel(slot.slot)}: Externes Meal (${NUTRITION_PLAN.externalMealGuidance.kcalRange}, ${NUTRITION_PLAN.externalMealGuidance.proteinRange})`];
-        }
-
-        if (!meal?.nutrition) {
+        if (slot.isExternal || !meal?.nutrition) {
           return [];
         }
 
@@ -164,7 +155,6 @@ export function NutritionView() {
           `${getMealSlotLabel(slot.slot)}: ${meal.name} (${meal.nutrition.kcal} kcal, ${meal.nutrition.protein} g Protein)`,
         ];
       }),
-    ],
     [selectedDay],
   );
   const plannedMealCount = selectedDay.meals.length;
@@ -188,6 +178,20 @@ export function NutritionView() {
 
       <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[88px]">
         <div className="space-y-6">
+          <MealPlanRuntimePanel
+            status={activeMealPlan.status}
+            runtimeStatus={activeMealPlan.runtimeStatus}
+            error={activeMealPlan.error}
+            userEmail={activeMealPlan.userEmail}
+            isRemoteConfigured={activeMealPlan.isRemoteConfigured}
+            onReload={() => void activeMealPlan.reload()}
+            onSignIn={activeMealPlan.signIn}
+            onCreateAccount={activeMealPlan.createAccount}
+            onSignOut={activeMealPlan.signOut}
+            onSaveRemoteDemoPlan={activeMealPlan.saveRemoteDemoPlan}
+            onArchiveActivePlan={activeMealPlan.archiveActivePlan}
+          />
+
           <WeekCalendar
             days={weekDays}
             activeDate={selectedDate}
@@ -257,12 +261,12 @@ export function NutritionView() {
                 label="Basis"
                 value={`${plannedMacros.kcal}`}
                 sublabel={`${plannedMacros.protein} g Protein`}
-                detailTitle="Im Planwert enthalten"
+                detailTitle="Im Basiswert enthalten"
                 detailLines={basisBreakdownLines}
                 detailFooter={
                   externalMealCount > 0
-                    ? `${externalMealCount} externer Slot ist als Planannahme eingerechnet.`
-                    : "Alle vier Slots sind als fixe Planmeals hinterlegt."
+                    ? `Externe Meals sind hier nicht eingerechnet. Aktuell offen: ${externalMealCount} Slot.`
+                    : "Die Basis deckt alle Planmeals des Tages ab."
                 }
                 onOpenDetails={setSelectedTopStat}
               />
@@ -288,7 +292,7 @@ export function NutritionView() {
                   return null;
                 }
 
-                const meal = getMealById(NUTRITION_PLAN, slot.mealId);
+                const meal = getMealById(nutritionPlan, slot.mealId);
                 const slotMeta = SLOT_META[slot.slot];
                 const Icon = slotMeta.icon;
                 const subtitle = slot.isExternal
@@ -397,34 +401,25 @@ export function NutritionView() {
             </div>
           </section>
 
-          <button
-            type="button"
-            onClick={() => setIsWeekInfoOpen(true)}
-            className="w-full rounded-[18px] border border-[#E8E6DD] bg-[#F4F2EC] p-4 text-left shadow-sm transition-colors hover:bg-[#EFEEE7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6A816A]/35 active:scale-[0.99]"
-          >
+          <section className="rounded-[18px] border border-[#E8E6DD] bg-[#F4F2EC] p-4 shadow-sm">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-white/80">
                 <Sparkles size={18} className="text-[#4A634A]" />
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[13px] font-bold text-gray-900">Wocheninfo</p>
-                  <span className="shrink-0 text-[11px] font-bold text-[#4A634A]">
-                    Oeffnen
-                  </span>
-                </div>
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-gray-900">Wocheninfo</p>
                 <p className="mt-1 text-[12px] leading-snug text-gray-600">
-                  {NUTRITION_PLAN.week.planLabel}
+                  {nutritionPlan.week.planLabel}
                 </p>
                 <p className="mt-2 text-[12px] font-medium text-gray-700">
-                  Budget: {formatEuro(NUTRITION_PLAN.budget.totalCost)} / {formatEuro(NUTRITION_PLAN.budget.budgetHardCap)} EUR
+                  Budget: {formatEuro(nutritionPlan.budget.totalCost)} / {formatEuro(nutritionPlan.budget.budgetHardCap)} EUR
                 </p>
                 <p className="mt-1 text-[11px] leading-snug text-gray-500">
-                  {NUTRITION_PLAN.budget.status} {NUTRITION_PLAN.budget.note}
+                  {nutritionPlan.budget.status} {nutritionPlan.budget.note}
                 </p>
               </div>
             </div>
-          </button>
+          </section>
         </div>
       </div>
 
@@ -432,12 +427,12 @@ export function NutritionView() {
         day={selectedDay}
         slot={selectedSlot}
         meal={selectedMeal}
-        externalGuidance={NUTRITION_PLAN.externalMealGuidance}
+        externalGuidance={nutritionPlan.externalMealGuidance}
         onClose={() => setSelectedSlotType(null)}
       />
       <NutritionDayDetailDrawer
         day={selectedDay}
-        plan={NUTRITION_PLAN}
+        plan={nutritionPlan}
         open={isDayDetailsOpen}
         initialSlotType={selectedSlotType}
         onClose={() => setIsDayDetailsOpen(false)}
@@ -445,10 +440,6 @@ export function NutritionView() {
       <TopStatDetailDrawer
         stat={selectedTopStat}
         onClose={() => setSelectedTopStat(null)}
-      />
-      <NutritionWeekInfoDrawer
-        open={isWeekInfoOpen}
-        onClose={() => setIsWeekInfoOpen(false)}
       />
       <UserProfileDrawer
         isOpen={isProfileOpen}
@@ -579,201 +570,6 @@ function TopStatDetailDrawer({
   );
 }
 
-function NutritionWeekInfoDrawer({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
-  const shoppingStorageKey = `nutrition-shopping-${NUTRITION_PLAN.week.startIsoDate}-${NUTRITION_PLAN.week.endIsoDate}`;
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
-  const [isShoppingStateReady, setIsShoppingStateReady] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      setIsShoppingStateReady(true);
-      return;
-    }
-
-    try {
-      const storedItems = window.localStorage.getItem(shoppingStorageKey);
-      setCheckedItems(storedItems ? JSON.parse(storedItems) : {});
-    } catch {
-      setCheckedItems({});
-    } finally {
-      setIsShoppingStateReady(true);
-    }
-  }, [shoppingStorageKey]);
-
-  useEffect(() => {
-    if (!isShoppingStateReady || typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(shoppingStorageKey, JSON.stringify(checkedItems));
-  }, [checkedItems, isShoppingStateReady, shoppingStorageKey]);
-
-  const shoppingItems = NUTRITION_PLAN.shoppingAndReview.stores.flatMap((store) =>
-    store.items.map((item) => ({
-      id: getShoppingItemId(store, item),
-      item,
-    })),
-  );
-  const completedCount = shoppingItems.filter(({ id }) => checkedItems[id]).length;
-  const budgetBuffer = NUTRITION_PLAN.budget.budgetHardCap - NUTRITION_PLAN.budget.totalCost;
-
-  const toggleShoppingItem = (id: string) => {
-    setCheckedItems((previous) => ({ ...previous, [id]: !previous[id] }));
-  };
-
-  const resetShoppingList = () => {
-    setCheckedItems({});
-  };
-
-  return (
-    <Drawer open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DrawerContent className="mx-auto flex h-[92vh] max-w-[390px] flex-col overflow-hidden rounded-t-[24px] border-t-0 bg-[#F5F4EF]">
-        <DrawerDescription className="sr-only">
-          Wocheninformationen mit Einkaufsliste, Budget und Kostenhinweisen.
-        </DrawerDescription>
-
-        <div className="flex items-center justify-between border-b border-[#EBEAE4] bg-white px-4 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-1 text-gray-900 transition-colors hover:bg-gray-100"
-            aria-label="Zurueck"
-          >
-            <ChevronLeft size={24} />
-          </button>
-          <DrawerTitle className="text-[16px] font-bold text-gray-900">
-            Wocheninfo
-          </DrawerTitle>
-          <div className="w-8" />
-        </div>
-
-        <div className="hide-scrollbar flex-1 overflow-y-auto px-4 pb-5 pt-4">
-          <div className="space-y-5">
-            <section className="rounded-[18px] border border-[#E4E9E4] bg-white p-4 shadow-sm">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#6A816A]">
-                {NUTRITION_PLAN.week.startIsoDate} bis {NUTRITION_PLAN.week.endIsoDate}
-              </p>
-              <p className="mt-1 text-[16px] font-bold leading-tight text-gray-900">
-                {NUTRITION_PLAN.week.planLabel}
-              </p>
-              <p className="mt-2 text-[12px] leading-snug text-gray-600">
-                {NUTRITION_PLAN.budget.status}
-              </p>
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <MiniBudgetMetric label="Gesamt" value={formatEuro(NUTRITION_PLAN.budget.totalCost)} />
-                <MiniBudgetMetric label="Limit" value={formatEuro(NUTRITION_PLAN.budget.budgetHardCap)} />
-                <MiniBudgetMetric label="Einkauf" value={formatEuro(NUTRITION_PLAN.budget.shoppingCost)} />
-                <MiniBudgetMetric label="Puffer" value={formatEuro(budgetBuffer)} />
-              </div>
-              <p className="mt-3 text-[11px] leading-snug text-gray-500">
-                Pantry/Bulk: {formatEuro(NUTRITION_PLAN.budget.pantryShare)} EUR. {NUTRITION_PLAN.budget.note}
-              </p>
-            </section>
-
-            <section className="rounded-[18px] border border-[#E4E9E4] bg-white p-4 shadow-sm">
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[13px] font-bold text-gray-900">Einkaufsliste</p>
-                  <p className="mt-1 text-[11px] leading-snug text-gray-500">
-                    {completedCount} von {shoppingItems.length} Produkten erledigt.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={resetShoppingList}
-                  className="rounded-[8px] bg-[#F7F6F1] px-2.5 py-1.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-[#ECEAE2]"
-                >
-                  Zuruecksetzen
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {NUTRITION_PLAN.shoppingAndReview.stores.map((store) => (
-                  <div key={store.store} className="rounded-[16px] bg-[#F8F7F2] p-3">
-                    <p className="mb-2 text-[12px] font-bold text-gray-900">{store.store}</p>
-                    <div className="space-y-2">
-                      {store.items.map((item) => {
-                        const itemId = getShoppingItemId(store, item);
-                        const isChecked = !!checkedItems[itemId];
-
-                        return (
-                          <button
-                            key={itemId}
-                            type="button"
-                            onClick={() => toggleShoppingItem(itemId)}
-                            className={`flex w-full items-start gap-3 rounded-[14px] p-3 text-left transition-colors active:scale-[0.99] ${
-                              isChecked ? "bg-white/60" : "bg-white"
-                            }`}
-                          >
-                            <div className="mt-0.5">
-                              {isChecked ? (
-                                <CheckSquare size={18} className="text-[#6A816A]" />
-                              ) : (
-                                <Square size={18} className="text-gray-300" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-start justify-between gap-3">
-                                <p
-                                  className={`text-[12px] font-bold leading-tight ${
-                                    isChecked
-                                      ? "text-gray-400 line-through"
-                                      : "text-gray-900"
-                                  }`}
-                                >
-                                  {item.product}
-                                </p>
-                                <span
-                                  className={`shrink-0 text-[11px] font-bold ${
-                                    isChecked ? "text-gray-400 line-through" : "text-gray-700"
-                                  }`}
-                                >
-                                  {formatEuro(item.weeklyCost)} EUR
-                                </span>
-                              </div>
-                              <p
-                                className={`mt-1 text-[11px] leading-snug ${
-                                  isChecked ? "text-gray-400 line-through" : "text-gray-500"
-                                }`}
-                              >
-                                {item.plannedAmount} | {item.use.join(", ")}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <InfoList
-              title="Bulk-Pantry-Anteile"
-              items={NUTRITION_PLAN.shoppingAndReview.bulkPantryDetails.map(
-                (item) =>
-                  `${item.product}: ${item.plannedAmount}, ${formatEuro(item.costShare)} EUR (${item.priceStatus})`,
-              )}
-            />
-            <InfoList title="Kostentreiber" items={NUTRITION_PLAN.shoppingAndReview.costDrivers} />
-            <InfoList
-              title="Alternativen bei Preissprung"
-              items={NUTRITION_PLAN.shoppingAndReview.priceJumpAlternatives}
-            />
-          </div>
-        </div>
-      </DrawerContent>
-    </Drawer>
-  );
-}
-
 function getMealSubtitle(meal: MealRecipe | null) {
   if (!meal) {
     return "Kein Rezept gefunden.";
@@ -785,46 +581,6 @@ function getMealSubtitle(meal: MealRecipe | null) {
     .join(", ");
 
   return `${ingredientsPreview}${meal.ingredients.length > 3 ? " ..." : ""}`;
-}
-
-function MiniBudgetMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-[14px] bg-[#F8F7F2] p-2.5">
-      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">{label}</p>
-      <p className="mt-1 text-[13px] font-bold text-gray-900">{value} EUR</p>
-    </div>
-  );
-}
-
-function InfoList({
-  title,
-  items,
-}: {
-  title: string;
-  items: string[];
-}) {
-  return (
-    <div className="rounded-[16px] bg-[#F8F7F2] p-3">
-      <p className="text-[12px] font-bold text-gray-900">{title}</p>
-      <div className="mt-2 space-y-2">
-        {items.map((item) => (
-          <p key={`${title}-${item}`} className="text-[11px] leading-snug text-gray-600">
-            {item}
-          </p>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function getShoppingItemId(store: ShoppingStore, item: ShoppingListItem) {
-  return `${store.store}::${item.product}::${item.plannedAmount}`;
 }
 
 function formatEuro(value: number) {
