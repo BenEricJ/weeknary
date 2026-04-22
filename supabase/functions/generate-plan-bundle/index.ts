@@ -24,12 +24,27 @@ interface PlanBundleGenerationRequest {
   constraints: string[];
   startingPoint: "new" | "previous-week" | "current-plan";
   userNotes: string;
+  planningIntent?: "reset" | "optimize" | "maintain" | "build_routine" | "busy_week";
+  weekMood?: "calm" | "productive" | "athletic" | "social" | "recovery";
+  strictness?: "loose" | "balanced" | "strict";
+  mainFocus?: string;
+  avoidThisWeek?: string[];
+  specialNotes?: string;
+  tradeoffPreference?: "consistency" | "performance" | "flexibility" | "recovery";
+  adherencePriority?: "low" | "medium" | "high";
+  changeTolerance?: "low" | "medium" | "high";
+  regenerationPriority?: "low" | "medium" | "high";
+  failureMode?: string;
+  constraintsProfile?: Record<string, unknown>;
+  state?: Record<string, unknown>;
+  output?: Record<string, unknown>;
   profile?: {
     displayName: string;
     birthYear?: number;
     heightCm?: number;
     weightKg?: number;
     activityLevel: "low" | "medium" | "high";
+    planningPersona?: "structured" | "flexible" | "minimalist";
   };
   preferences?: {
     nutrition?: Record<string, unknown>;
@@ -165,7 +180,12 @@ async function generateAiBundle(
       body: JSON.stringify({
         model,
         instructions:
-          "Create an editable German wellness planning draft using the supplied profile and preferences only as planning context. Do not provide medical advice. Return practical meals, workouts, and week structure only. Keep every date inside the requested range. Use empty strings for absent times.",
+          [
+            "Create an editable German wellness planning draft using the supplied profile, preferences, current state, request controls, and output preferences as planning context.",
+            "Do not provide medical advice. Keep the plan conservative when riskTolerance is conservative or balanced.",
+            "Respect hard constraints, avoidThisWeek entries, protected rest days, target events, training platforms, and recovery limits.",
+            "Return practical meals, workouts, and week structure only. Keep every date inside the requested range. Use empty strings for absent times.",
+          ].join(" "),
         input: JSON.stringify(input),
         text: {
           format: {

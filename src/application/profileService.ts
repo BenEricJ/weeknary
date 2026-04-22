@@ -45,6 +45,7 @@ export function createDefaultProfile(
     heightCm: seed.heightCm ?? 178,
     weightKg: seed.weightKg ?? 72,
     activityLevel: seed.activityLevel ?? "medium",
+    planningPersona: seed.planningPersona ?? "structured",
     createdAt: seed.createdAt ?? timestamp,
     updatedAt: seed.updatedAt ?? timestamp,
     version: seed.version ?? 0,
@@ -70,5 +71,12 @@ function validateProfile(profile: Profile) {
 
   if (profile.weightKg !== undefined && (profile.weightKg < 20 || profile.weightKg > 400)) {
     throw new Error("Profile weight is invalid.");
+  }
+
+  if (
+    profile.planningPersona !== undefined &&
+    !["structured", "flexible", "minimalist"].includes(profile.planningPersona)
+  ) {
+    throw new Error("Profile planning persona is invalid.");
   }
 }

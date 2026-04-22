@@ -1,12 +1,20 @@
 import type {
+  ConstraintsProfile,
+  CurrentState,
   DateRange,
   EntityId,
+  FailureMode,
   MealPlan,
   MealSlotType,
+  OutputPreferences,
+  PlanIntent,
   Profile,
+  Strictness,
   TrainingPlan,
+  TradeoffPreference,
   UserPreferences,
   UserId,
+  WeekMood,
   WeekPlan,
   WeekPlanEventCategory,
 } from "../domain";
@@ -24,6 +32,20 @@ export interface PlanBundleGenerationRequest {
   constraints: string[];
   startingPoint: "new" | "previous-week" | "current-plan";
   userNotes: string;
+  planningIntent?: PlanIntent;
+  weekMood?: WeekMood;
+  strictness?: Strictness;
+  mainFocus?: string;
+  avoidThisWeek?: string[];
+  specialNotes?: string;
+  tradeoffPreference?: TradeoffPreference;
+  adherencePriority?: "low" | "medium" | "high";
+  changeTolerance?: "low" | "medium" | "high";
+  regenerationPriority?: "low" | "medium" | "high";
+  failureMode?: FailureMode;
+  constraintsProfile?: ConstraintsProfile;
+  state?: CurrentState;
+  output?: OutputPreferences;
   profile?: Profile;
   preferences?: UserPreferences;
 }

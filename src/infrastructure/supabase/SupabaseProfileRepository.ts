@@ -62,6 +62,7 @@ function profileToPayload(profile: Profile): Json {
     heightCm: profile.heightCm,
     weightKg: profile.weightKg,
     activityLevel: profile.activityLevel,
+    planningPersona: profile.planningPersona,
   };
 }
 
@@ -82,6 +83,10 @@ function rowToProfile(row: UserScopedPayloadRow): Profile {
     activityLevel: payload.activityLevel === "low" || payload.activityLevel === "high"
       ? payload.activityLevel
       : "medium",
+    planningPersona:
+      payload.planningPersona === "flexible" || payload.planningPersona === "minimalist"
+        ? payload.planningPersona
+        : "structured",
   };
 }
 

@@ -32,6 +32,25 @@ const defaultConstraints = [
   "Meal Prep soll alltagstauglich bleiben",
   "Training moderat und editierbar planen",
 ];
+const defaultOutput: NonNullable<PlanBundleGenerationRequest["output"]> = {
+  detailLevel: "normal",
+  explanationLevel: "short",
+  riskTolerance: "balanced",
+  communicationStyle: "direct_de",
+  format: "cards",
+  conflictResolutionStyle: "adaptive",
+  includeAlternatives: true,
+  includePrepSteps: true,
+  includeShoppingList: true,
+  includeRationale: true,
+  includeFallbacks: true,
+  includeRecoveryNotes: true,
+  includeLeftoverPlan: true,
+  includeStorageHints: true,
+  includeBatchCookingPlan: true,
+  includeTimeEstimates: true,
+  includeConstraintWarnings: true,
+};
 
 export function CreateHubView() {
   const navigate = useNavigate();
@@ -48,6 +67,30 @@ export function CreateHubView() {
   const [didApplyProfileDefaults, setDidApplyProfileDefaults] = useState(false);
   const [startingPoint, setStartingPoint] =
     useState<PlanBundleGenerationRequest["startingPoint"]>("new");
+  const [planningIntent, setPlanningIntent] =
+    useState<NonNullable<PlanBundleGenerationRequest["planningIntent"]>>("maintain");
+  const [weekMood, setWeekMood] =
+    useState<NonNullable<PlanBundleGenerationRequest["weekMood"]>>("productive");
+  const [strictness, setStrictness] =
+    useState<NonNullable<PlanBundleGenerationRequest["strictness"]>>("balanced");
+  const [mainFocus, setMainFocus] = useState("");
+  const [avoidThisWeekText, setAvoidThisWeekText] = useState("");
+  const [specialNotes, setSpecialNotes] = useState("");
+  const [tradeoffPreference, setTradeoffPreference] =
+    useState<NonNullable<PlanBundleGenerationRequest["tradeoffPreference"]>>("consistency");
+  const [failureMode, setFailureMode] = useState<PlanBundleGenerationRequest["failureMode"]>();
+  const [adherencePriority, setAdherencePriority] =
+    useState<NonNullable<PlanBundleGenerationRequest["adherencePriority"]>>("medium");
+  const [changeTolerance, setChangeTolerance] =
+    useState<NonNullable<PlanBundleGenerationRequest["changeTolerance"]>>("medium");
+  const [regenerationPriority, setRegenerationPriority] =
+    useState<NonNullable<PlanBundleGenerationRequest["regenerationPriority"]>>("medium");
+  const [constraintsProfile, setConstraintsProfile] =
+    useState<PlanBundleGenerationRequest["constraintsProfile"]>({});
+  const [currentState, setCurrentState] =
+    useState<PlanBundleGenerationRequest["state"]>({});
+  const [output, setOutput] =
+    useState<NonNullable<PlanBundleGenerationRequest["output"]>>(defaultOutput);
 
   useEffect(() => {
     if (didApplyProfileDefaults || !createHub.preferences) {
@@ -57,30 +100,82 @@ export function CreateHubView() {
     setGoalsText(buildGoalsFromPreferences(createHub.preferences));
     setConstraintsText(buildConstraintsFromPreferences(createHub.preferences));
     setUserNotes(buildNotesFromProfile(createHub.profile?.displayName));
+    setMainFocus(createHub.preferences.week.focusAreas[0] ?? "");
     setDidApplyProfileDefaults(true);
   }, [createHub.preferences, createHub.profile, didApplyProfileDefaults]);
 
   const request = useMemo<PlanBundleGenerationRequest>(
-    () => ({
-      dateRange: { startDate, endDate },
-      timezone: createHub.preferences?.timezone ?? "Europe/Berlin",
-      locale: createHub.preferences?.locale ?? "de-DE",
-      goals: toLines(goalsText),
-      constraints: toLines(constraintsText),
-      startingPoint,
-      userNotes,
-      profile: createHub.profile ?? undefined,
-      preferences: createHub.preferences ?? undefined,
-    }),
+    () => {
+      const avoidThisWeek = toLines(avoidThisWeekText);
+      return {
+        dateRange: { startDate, endDate },
+        timezone: createHub.preferences?.timezone ?? "Europe/Berlin",
+        locale: createHub.preferences?.locale ?? "de-DE",
+        goals: [
+          ...toLines(goalsText),
+          ...buildStructuredGoals({
+            planningIntent,
+            weekMood,
+            mainFocus,
+            tradeoffPreference,
+            preferences: createHub.preferences,
+          }),
+        ],
+        constraints: [
+          ...toLines(constraintsText),
+          ...buildStructuredConstraints({
+            strictness,
+            avoidThisWeek,
+            failureMode,
+            adherencePriority,
+            changeTolerance,
+            regenerationPriority,
+            output,
+          }),
+        ],
+        startingPoint,
+        userNotes: [userNotes, specialNotes].filter(Boolean).join("\n\n"),
+        planningIntent,
+        weekMood,
+        strictness,
+        mainFocus: emptyToUndefined(mainFocus),
+        avoidThisWeek,
+        specialNotes: emptyToUndefined(specialNotes),
+        tradeoffPreference,
+        adherencePriority,
+        changeTolerance,
+        regenerationPriority,
+        failureMode,
+        constraintsProfile,
+        state: currentState,
+        output,
+        profile: createHub.profile ?? undefined,
+        preferences: createHub.preferences ?? undefined,
+      };
+    },
     [
+      adherencePriority,
+      avoidThisWeekText,
+      changeTolerance,
       constraintsText,
+      constraintsProfile,
       createHub.preferences,
       createHub.profile,
+      currentState,
       endDate,
+      failureMode,
       goalsText,
+      mainFocus,
+      output,
+      planningIntent,
+      regenerationPriority,
+      specialNotes,
       startDate,
       startingPoint,
+      strictness,
+      tradeoffPreference,
       userNotes,
+      weekMood,
     ],
   );
 
@@ -154,9 +249,37 @@ export function CreateHubView() {
               goalsText={goalsText}
               constraintsText={constraintsText}
               userNotes={userNotes}
+              planningIntent={planningIntent}
+              weekMood={weekMood}
+              strictness={strictness}
+              mainFocus={mainFocus}
+              avoidThisWeekText={avoidThisWeekText}
+              specialNotes={specialNotes}
+              tradeoffPreference={tradeoffPreference}
+              failureMode={failureMode}
+              adherencePriority={adherencePriority}
+              changeTolerance={changeTolerance}
+              regenerationPriority={regenerationPriority}
+              constraintsProfile={constraintsProfile}
+              currentState={currentState}
+              output={output}
               onGoalsChange={setGoalsText}
               onConstraintsChange={setConstraintsText}
               onUserNotesChange={setUserNotes}
+              onPlanningIntentChange={setPlanningIntent}
+              onWeekMoodChange={setWeekMood}
+              onStrictnessChange={setStrictness}
+              onMainFocusChange={setMainFocus}
+              onAvoidThisWeekChange={setAvoidThisWeekText}
+              onSpecialNotesChange={setSpecialNotes}
+              onTradeoffPreferenceChange={setTradeoffPreference}
+              onFailureModeChange={setFailureMode}
+              onAdherencePriorityChange={setAdherencePriority}
+              onChangeToleranceChange={setChangeTolerance}
+              onRegenerationPriorityChange={setRegenerationPriority}
+              onConstraintsProfileChange={setConstraintsProfile}
+              onCurrentStateChange={setCurrentState}
+              onOutputChange={setOutput}
             />
           ) : null}
 
@@ -342,16 +465,80 @@ function ContextStep({
   goalsText,
   constraintsText,
   userNotes,
+  planningIntent,
+  weekMood,
+  strictness,
+  mainFocus,
+  avoidThisWeekText,
+  specialNotes,
+  tradeoffPreference,
+  failureMode,
+  adherencePriority,
+  changeTolerance,
+  regenerationPriority,
+  constraintsProfile,
+  currentState,
+  output,
   onGoalsChange,
   onConstraintsChange,
   onUserNotesChange,
+  onPlanningIntentChange,
+  onWeekMoodChange,
+  onStrictnessChange,
+  onMainFocusChange,
+  onAvoidThisWeekChange,
+  onSpecialNotesChange,
+  onTradeoffPreferenceChange,
+  onFailureModeChange,
+  onAdherencePriorityChange,
+  onChangeToleranceChange,
+  onRegenerationPriorityChange,
+  onConstraintsProfileChange,
+  onCurrentStateChange,
+  onOutputChange,
 }: {
   goalsText: string;
   constraintsText: string;
   userNotes: string;
+  planningIntent: NonNullable<PlanBundleGenerationRequest["planningIntent"]>;
+  weekMood: NonNullable<PlanBundleGenerationRequest["weekMood"]>;
+  strictness: NonNullable<PlanBundleGenerationRequest["strictness"]>;
+  mainFocus: string;
+  avoidThisWeekText: string;
+  specialNotes: string;
+  tradeoffPreference: NonNullable<PlanBundleGenerationRequest["tradeoffPreference"]>;
+  failureMode: PlanBundleGenerationRequest["failureMode"];
+  adherencePriority: NonNullable<PlanBundleGenerationRequest["adherencePriority"]>;
+  changeTolerance: NonNullable<PlanBundleGenerationRequest["changeTolerance"]>;
+  regenerationPriority: NonNullable<PlanBundleGenerationRequest["regenerationPriority"]>;
+  constraintsProfile: PlanBundleGenerationRequest["constraintsProfile"];
+  currentState: PlanBundleGenerationRequest["state"];
+  output: NonNullable<PlanBundleGenerationRequest["output"]>;
   onGoalsChange: (value: string) => void;
   onConstraintsChange: (value: string) => void;
   onUserNotesChange: (value: string) => void;
+  onPlanningIntentChange: (value: NonNullable<PlanBundleGenerationRequest["planningIntent"]>) => void;
+  onWeekMoodChange: (value: NonNullable<PlanBundleGenerationRequest["weekMood"]>) => void;
+  onStrictnessChange: (value: NonNullable<PlanBundleGenerationRequest["strictness"]>) => void;
+  onMainFocusChange: (value: string) => void;
+  onAvoidThisWeekChange: (value: string) => void;
+  onSpecialNotesChange: (value: string) => void;
+  onTradeoffPreferenceChange: (
+    value: NonNullable<PlanBundleGenerationRequest["tradeoffPreference"]>,
+  ) => void;
+  onFailureModeChange: (value: PlanBundleGenerationRequest["failureMode"]) => void;
+  onAdherencePriorityChange: (
+    value: NonNullable<PlanBundleGenerationRequest["adherencePriority"]>,
+  ) => void;
+  onChangeToleranceChange: (
+    value: NonNullable<PlanBundleGenerationRequest["changeTolerance"]>,
+  ) => void;
+  onRegenerationPriorityChange: (
+    value: NonNullable<PlanBundleGenerationRequest["regenerationPriority"]>,
+  ) => void;
+  onConstraintsProfileChange: (value: PlanBundleGenerationRequest["constraintsProfile"]) => void;
+  onCurrentStateChange: (value: PlanBundleGenerationRequest["state"]) => void;
+  onOutputChange: (value: NonNullable<PlanBundleGenerationRequest["output"]>) => void;
 }) {
   return (
     <section className="space-y-4">
@@ -360,6 +547,93 @@ function ContextStep({
         <p className="mt-1 text-[13px] leading-snug text-gray-500">
           Die Ausgabe bleibt ein editierbarer Wellness-Plan.
         </p>
+      </div>
+      <div className="grid gap-3">
+        <SelectBlock
+          label="Intent"
+          value={planningIntent}
+          options={["reset", "optimize", "maintain", "build_routine", "busy_week"]}
+          onChange={(value) =>
+            onPlanningIntentChange(
+              value as NonNullable<PlanBundleGenerationRequest["planningIntent"]>,
+            )
+          }
+        />
+        <SelectBlock
+          label="Week Mood"
+          value={weekMood}
+          options={["calm", "productive", "athletic", "social", "recovery"]}
+          onChange={(value) =>
+            onWeekMoodChange(value as NonNullable<PlanBundleGenerationRequest["weekMood"]>)
+          }
+        />
+        <SelectBlock
+          label="Striktheit"
+          value={strictness}
+          options={["loose", "balanced", "strict"]}
+          onChange={(value) =>
+            onStrictnessChange(value as NonNullable<PlanBundleGenerationRequest["strictness"]>)
+          }
+        />
+        <SelectBlock
+          label="Tradeoff"
+          value={tradeoffPreference}
+          options={["consistency", "performance", "flexibility", "recovery"]}
+          onChange={(value) =>
+            onTradeoffPreferenceChange(
+              value as NonNullable<PlanBundleGenerationRequest["tradeoffPreference"]>,
+            )
+          }
+        />
+        <SelectBlock
+          label="Failure Mode"
+          value={failureMode ?? ""}
+          options={[
+            "",
+            "overeating",
+            "under_eating",
+            "overplanning",
+            "underplanning",
+            "fatigue",
+            "time_loss",
+            "social_disruption",
+            "inconsistency",
+          ]}
+          onChange={(value) =>
+            onFailureModeChange(value ? (value as PlanBundleGenerationRequest["failureMode"]) : undefined)
+          }
+        />
+        <SelectBlock
+          label="Adherence"
+          value={adherencePriority}
+          options={["low", "medium", "high"]}
+          onChange={(value) =>
+            onAdherencePriorityChange(
+              value as NonNullable<PlanBundleGenerationRequest["adherencePriority"]>,
+            )
+          }
+        />
+        <SelectBlock
+          label="Change Tolerance"
+          value={changeTolerance}
+          options={["low", "medium", "high"]}
+          onChange={(value) =>
+            onChangeToleranceChange(
+              value as NonNullable<PlanBundleGenerationRequest["changeTolerance"]>,
+            )
+          }
+        />
+        <SelectBlock
+          label="Regeneration"
+          value={regenerationPriority}
+          options={["low", "medium", "high"]}
+          onChange={(value) =>
+            onRegenerationPriorityChange(
+              value as NonNullable<PlanBundleGenerationRequest["regenerationPriority"]>,
+            )
+          }
+        />
+        <TextInputBlock label="Main Focus" value={mainFocus} onChange={onMainFocusChange} />
       </div>
       <TextAreaBlock
         icon={Target}
@@ -380,6 +654,43 @@ function ContextStep({
         onChange={onUserNotesChange}
         rows={4}
       />
+      <TextAreaBlock
+        icon={CheckCircle2}
+        label="Diese Woche vermeiden"
+        value={avoidThisWeekText}
+        onChange={onAvoidThisWeekChange}
+        rows={4}
+      />
+      <TextAreaBlock
+        icon={NotebookPen}
+        label="Special Notes"
+        value={specialNotes}
+        onChange={onSpecialNotesChange}
+        rows={4}
+      />
+      <JsonBlock
+        label="Constraints Profile"
+        value={constraintsProfile ?? {}}
+        onChange={(value) =>
+          onConstraintsProfileChange(
+            value && typeof value === "object" && !Array.isArray(value)
+              ? (value as PlanBundleGenerationRequest["constraintsProfile"])
+              : {},
+          )
+        }
+      />
+      <JsonBlock
+        label="Current State"
+        value={currentState ?? {}}
+        onChange={(value) =>
+          onCurrentStateChange(
+            value && typeof value === "object" && !Array.isArray(value)
+              ? (value as PlanBundleGenerationRequest["state"])
+              : {},
+          )
+        }
+      />
+      <OutputPreferencesBlock output={output} onChange={onOutputChange} />
     </section>
   );
 }
@@ -503,6 +814,238 @@ function PreviewCard({
         {value}
       </span>
     </div>
+  );
+}
+
+function SelectBlock({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 h-9 w-full bg-transparent text-[13px] font-bold text-gray-900 outline-none"
+      >
+        {options.map((option) => (
+          <option key={option || "empty"} value={option}>
+            {option || "none"}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function TextInputBlock({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        {label}
+      </span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 h-9 w-full bg-transparent text-[13px] font-bold text-gray-900 outline-none"
+      />
+    </label>
+  );
+}
+
+function BooleanBlock({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between rounded-[14px] border border-gray-100 bg-white p-3 shadow-sm">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        {label}
+      </span>
+      <input
+        type="checkbox"
+        checked={value}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-4 w-4 accent-[#5E7A5E]"
+      />
+    </label>
+  );
+}
+
+function JsonBlock({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const [text, setText] = useState(() => JSON.stringify(value, null, 2));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setText(JSON.stringify(value, null, 2));
+  }, [value]);
+
+  return (
+    <label className="block rounded-[18px] border border-gray-100 bg-white p-4 shadow-sm">
+      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+        {label}
+      </span>
+      <textarea
+        value={text}
+        rows={5}
+        onChange={(event) => {
+          const nextText = event.target.value;
+          setText(nextText);
+
+          try {
+            const parsed = JSON.parse(nextText);
+            setError(null);
+            onChange(parsed);
+          } catch {
+            setError("JSON ungueltig.");
+          }
+        }}
+        className="mt-3 w-full resize-none bg-transparent font-mono text-[12px] leading-relaxed text-gray-800 outline-none"
+      />
+      {error ? <span className="mt-1 block text-[10px] font-bold text-[#9C3A3A]">{error}</span> : null}
+    </label>
+  );
+}
+
+function OutputPreferencesBlock({
+  output,
+  onChange,
+}: {
+  output: NonNullable<PlanBundleGenerationRequest["output"]>;
+  onChange: (value: NonNullable<PlanBundleGenerationRequest["output"]>) => void;
+}) {
+  const updateOutput = (patch: Partial<NonNullable<PlanBundleGenerationRequest["output"]>>) =>
+    onChange({ ...output, ...patch });
+
+  return (
+    <details className="rounded-[18px] border border-gray-100 bg-white p-4 shadow-sm">
+      <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wider text-gray-500">
+        Output Preferences
+      </summary>
+      <div className="mt-4 grid gap-3">
+        <SelectBlock
+          label="Detail Level"
+          value={output.detailLevel ?? "normal"}
+          options={["compact", "normal", "detailed"]}
+          onChange={(detailLevel) =>
+            updateOutput({
+              detailLevel: detailLevel as NonNullable<
+                PlanBundleGenerationRequest["output"]
+              >["detailLevel"],
+            })
+          }
+        />
+        <SelectBlock
+          label="Explanation Level"
+          value={output.explanationLevel ?? "short"}
+          options={["none", "short", "detailed"]}
+          onChange={(explanationLevel) =>
+            updateOutput({
+              explanationLevel: explanationLevel as NonNullable<
+                PlanBundleGenerationRequest["output"]
+              >["explanationLevel"],
+            })
+          }
+        />
+        <SelectBlock
+          label="Risk Tolerance"
+          value={output.riskTolerance ?? "balanced"}
+          options={["conservative", "balanced", "ambitious"]}
+          onChange={(riskTolerance) =>
+            updateOutput({
+              riskTolerance: riskTolerance as NonNullable<
+                PlanBundleGenerationRequest["output"]
+              >["riskTolerance"],
+            })
+          }
+        />
+        <SelectBlock
+          label="Communication"
+          value={output.communicationStyle ?? "direct_de"}
+          options={["casual_de", "direct_de", "coaching_de"]}
+          onChange={(communicationStyle) =>
+            updateOutput({
+              communicationStyle: communicationStyle as NonNullable<
+                PlanBundleGenerationRequest["output"]
+              >["communicationStyle"],
+            })
+          }
+        />
+        <SelectBlock
+          label="Format"
+          value={output.format ?? "cards"}
+          options={["calendar", "checklist", "timeline", "cards"]}
+          onChange={(format) =>
+            updateOutput({
+              format: format as NonNullable<PlanBundleGenerationRequest["output"]>["format"],
+            })
+          }
+        />
+        <SelectBlock
+          label="Conflict Resolution"
+          value={output.conflictResolutionStyle ?? "adaptive"}
+          options={["strict", "suggestive", "adaptive"]}
+          onChange={(conflictResolutionStyle) =>
+            updateOutput({
+              conflictResolutionStyle: conflictResolutionStyle as NonNullable<
+                PlanBundleGenerationRequest["output"]
+              >["conflictResolutionStyle"],
+            })
+          }
+        />
+        {[
+          "includeAlternatives",
+          "includePrepSteps",
+          "includeShoppingList",
+          "includeRationale",
+          "includeFallbacks",
+          "includeRecoveryNotes",
+          "includeLeftoverPlan",
+          "includeStorageHints",
+          "includeBatchCookingPlan",
+          "includeTimeEstimates",
+          "includeConstraintWarnings",
+        ].map((key) => (
+          <BooleanBlock
+            key={key}
+            label={key}
+            value={Boolean(output[key as keyof typeof output])}
+            onChange={(value) => updateOutput({ [key]: value })}
+          />
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -711,4 +1254,76 @@ function buildConstraintsFromPreferences(
 
 function buildNotesFromProfile(displayName?: string) {
   return `Plane eine realistische Woche${displayName ? ` fuer ${displayName}` : ""} mit klaren Meals, Training und Tagesstruktur.`;
+}
+
+function buildStructuredGoals({
+  planningIntent,
+  weekMood,
+  mainFocus,
+  tradeoffPreference,
+  preferences,
+}: {
+  planningIntent: NonNullable<PlanBundleGenerationRequest["planningIntent"]>;
+  weekMood: NonNullable<PlanBundleGenerationRequest["weekMood"]>;
+  mainFocus: string;
+  tradeoffPreference: NonNullable<PlanBundleGenerationRequest["tradeoffPreference"]>;
+  preferences: ReturnType<typeof useCreateHub>["preferences"];
+}) {
+  const goals = [
+    `Plan Intent: ${planningIntent}`,
+    `Week Mood: ${weekMood}`,
+    `Tradeoff: ${tradeoffPreference}`,
+  ];
+
+  if (mainFocus.trim()) {
+    goals.push(`Main Focus: ${mainFocus.trim()}`);
+  }
+
+  const primaryTarget = preferences?.training.targetEvents?.find(
+    (event) => event.id === preferences.training.primaryTargetEventId,
+  );
+
+  if (primaryTarget) {
+    goals.push(
+      `Primary Training Target: ${primaryTarget.title}${primaryTarget.timeHorizonWeeks ? ` in ${primaryTarget.timeHorizonWeeks} weeks` : ""}`,
+    );
+  }
+
+  if (preferences?.training.platforms?.length) {
+    goals.push(`Training platforms: ${preferences.training.platforms.join(", ")}`);
+  }
+
+  return goals;
+}
+
+function buildStructuredConstraints({
+  strictness,
+  avoidThisWeek,
+  failureMode,
+  adherencePriority,
+  changeTolerance,
+  regenerationPriority,
+  output,
+}: {
+  strictness: NonNullable<PlanBundleGenerationRequest["strictness"]>;
+  avoidThisWeek: string[];
+  failureMode: PlanBundleGenerationRequest["failureMode"];
+  adherencePriority: NonNullable<PlanBundleGenerationRequest["adherencePriority"]>;
+  changeTolerance: NonNullable<PlanBundleGenerationRequest["changeTolerance"]>;
+  regenerationPriority: NonNullable<PlanBundleGenerationRequest["regenerationPriority"]>;
+  output: NonNullable<PlanBundleGenerationRequest["output"]>;
+}) {
+  return [
+    `Strictness: ${strictness}`,
+    `Adherence priority: ${adherencePriority}`,
+    `Change tolerance: ${changeTolerance}`,
+    `Regeneration priority: ${regenerationPriority}`,
+    `Risk tolerance: ${output.riskTolerance ?? "balanced"}`,
+    failureMode ? `Avoid failure mode: ${failureMode}` : "",
+    ...avoidThisWeek.map((item) => `Avoid this week: ${item}`),
+  ].filter(Boolean);
+}
+
+function emptyToUndefined(value: string) {
+  return value.trim() ? value.trim() : undefined;
 }
