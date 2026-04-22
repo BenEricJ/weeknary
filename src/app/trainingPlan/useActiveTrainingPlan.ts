@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AuthCredentials } from "../../application";
+import type { AuthCredentials, AuthSession } from "../../application";
 import type { TrainingPlan } from "../../domain";
 import {
   TRAINING_PLAN_ROWS,
@@ -67,7 +67,14 @@ export function useActiveTrainingPlan() {
 
   const signIn = useCallback(
     async (credentials: AuthCredentials) => {
-      await authProvider.signIn(credentials);
+      setStatus("loading");
+      setError(null);
+      const session = await authProvider.signIn(credentials);
+      if (!isSignedInSession(session)) {
+        setStatus("error");
+        setError(getAuthFailureMessage(session, "Sign in failed."));
+        return;
+      }
       await reload();
     },
     [reload],
@@ -75,7 +82,14 @@ export function useActiveTrainingPlan() {
 
   const createAccount = useCallback(
     async (credentials: AuthCredentials) => {
-      await authProvider.createAccount(credentials);
+      setStatus("loading");
+      setError(null);
+      const session = await authProvider.createAccount(credentials);
+      if (!isSignedInSession(session)) {
+        setStatus("error");
+        setError(getAuthFailureMessage(session, "Account creation failed."));
+        return;
+      }
       await reload();
     },
     [reload],
@@ -145,6 +159,14 @@ export function useActiveTrainingPlan() {
 
 function scopedDemoId(kind: string, userId: string) {
   return uuidFromText(`remote-demo-${kind}-${userId}`);
+}
+
+function isSignedInSession(session: AuthSession) {
+  return session.status === "signedIn";
+}
+
+function getAuthFailureMessage(session: AuthSession, fallback: string) {
+  return session.status === "unavailable" ? session.reason : fallback;
 }
 
 function uuidFromText(input: string) {

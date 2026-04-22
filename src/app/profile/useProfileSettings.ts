@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AuthCredentials } from "../../application";
+import type { AuthCredentials, AuthSession } from "../../application";
 import type { Profile, UserPreferences } from "../../domain";
 import { authProvider } from "../supabaseRuntime";
 import {
@@ -76,7 +76,14 @@ export function useProfileSettings(): ProfileSettingsState {
 
   const signIn = useCallback(
     async (credentials: AuthCredentials) => {
-      await authProvider.signIn(credentials);
+      setStatus("loading");
+      setError(null);
+      const session = await authProvider.signIn(credentials);
+      if (!isSignedInSession(session)) {
+        setStatus("error");
+        setError(getAuthFailureMessage(session, "Sign in failed."));
+        return;
+      }
       await reload();
     },
     [reload],
@@ -84,7 +91,14 @@ export function useProfileSettings(): ProfileSettingsState {
 
   const createAccount = useCallback(
     async (credentials: AuthCredentials) => {
-      await authProvider.createAccount(credentials);
+      setStatus("loading");
+      setError(null);
+      const session = await authProvider.createAccount(credentials);
+      if (!isSignedInSession(session)) {
+        setStatus("error");
+        setError(getAuthFailureMessage(session, "Account creation failed."));
+        return;
+      }
       await reload();
     },
     [reload],
@@ -157,4 +171,12 @@ export function useProfileSettings(): ProfileSettingsState {
     saveProfile,
     savePreferences,
   };
+}
+
+function isSignedInSession(session: AuthSession) {
+  return session.status === "signedIn";
+}
+
+function getAuthFailureMessage(session: AuthSession, fallback: string) {
+  return session.status === "unavailable" ? session.reason : fallback;
 }

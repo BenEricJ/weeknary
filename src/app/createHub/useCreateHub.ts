@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
   AuthCredentials,
+  AuthSession,
   GeneratedPlanBundle,
   PlanBundleActivationMode,
   PlanBundleGenerationRequest,
@@ -94,7 +95,14 @@ export function useCreateHub(): CreateHubState {
 
   const signIn = useCallback(
     async (credentials: AuthCredentials) => {
-      await authProvider.signIn(credentials);
+      setStatus("loading");
+      setError(null);
+      const session = await authProvider.signIn(credentials);
+      if (!isSignedInSession(session)) {
+        setStatus("error");
+        setError(getAuthFailureMessage(session, "Sign in failed."));
+        return;
+      }
       await reload();
     },
     [reload],
@@ -102,7 +110,14 @@ export function useCreateHub(): CreateHubState {
 
   const createAccount = useCallback(
     async (credentials: AuthCredentials) => {
-      await authProvider.createAccount(credentials);
+      setStatus("loading");
+      setError(null);
+      const session = await authProvider.createAccount(credentials);
+      if (!isSignedInSession(session)) {
+        setStatus("error");
+        setError(getAuthFailureMessage(session, "Account creation failed."));
+        return;
+      }
       await reload();
     },
     [reload],
@@ -209,4 +224,12 @@ export function useCreateHub(): CreateHubState {
     generate,
     save,
   };
+}
+
+function isSignedInSession(session: AuthSession) {
+  return session.status === "signedIn";
+}
+
+function getAuthFailureMessage(session: AuthSession, fallback: string) {
+  return session.status === "unavailable" ? session.reason : fallback;
 }

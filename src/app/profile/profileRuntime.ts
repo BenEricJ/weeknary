@@ -108,6 +108,24 @@ export async function resolveProfileRuntime(): Promise<ResolvedProfileRuntime> {
   const userPreferencesService = new UserPreferencesService(
     new SupabaseUserPreferencesRepository(client),
   );
+  const timestamp = new Date().toISOString();
+  const fallbackProfile = createDefaultProfile(session.userId, timestamp, {
+    displayName: session.email?.split("@")[0] ?? "Alex",
+  });
+  const fallbackPreferences = createDefaultUserPreferences(session.userId, timestamp);
+
+  let profile = fallbackProfile;
+  let preferences = fallbackPreferences;
+
+  try {
+    profile = await profileService.getOrCreateProfile(session.userId, {
+      displayName: session.email?.split("@")[0] ?? "Alex",
+    });
+    preferences = await userPreferencesService.getOrCreateUserPreferences(session.userId);
+  } catch {
+    profile = fallbackProfile;
+    preferences = fallbackPreferences;
+  }
 
   return {
     runtimeStatus: "remote-signed-in",
@@ -115,9 +133,7 @@ export async function resolveProfileRuntime(): Promise<ResolvedProfileRuntime> {
     userEmail: session.email ?? null,
     profileService,
     userPreferencesService,
-    profile: await profileService.getOrCreateProfile(session.userId, {
-      displayName: session.email?.split("@")[0] ?? "Alex",
-    }),
-    preferences: await userPreferencesService.getOrCreateUserPreferences(session.userId),
+    profile,
+    preferences,
   };
 }
