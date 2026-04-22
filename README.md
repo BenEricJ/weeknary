@@ -54,6 +54,18 @@ VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 ```
 
+For GitHub Pages, the same two Vite values must be configured as repository
+secrets because `.env.local` is local-only and is not committed:
+
+```text
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+```
+
+The Pages workflow fails before the Vite build if either secret is missing.
+After changing these secrets, redeploy Pages and hard-refresh the installed PWA
+or clear the service worker cache so the browser loads the new build.
+
 For the KI Create Hub Edge Function, set server-side Supabase secrets instead of
 Vite variables:
 
