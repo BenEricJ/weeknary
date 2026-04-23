@@ -58,7 +58,7 @@ export function WeekPlanRuntimePanel({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#6A816A]">
-            WeekPlan runtime
+            Wochenplan-Speicher
           </p>
           <p className="mt-1 text-[12px] font-bold text-gray-900">
             {runtimeStatus} - {status}

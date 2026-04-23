@@ -45,7 +45,7 @@ export function WeekPlanOrchestrationPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9A6A42]">
-            WeekPlan orchestration
+            Wochenplan-Entwurf
           </p>
           <p className="mt-1 text-[13px] font-bold text-gray-900">
             {getStatusLabel(orchestration)}

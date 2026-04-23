@@ -4,15 +4,23 @@ import { useNavigate } from "react-router";
 import { Check, ChevronLeft, Loader2, Plus, Save, Settings, Trash2 } from "lucide-react";
 import type {
   KitchenAppliance,
+  RecurringTimeBlock,
+  TimeBlockCategory,
   Profile,
   TimeBlock,
   TrainingTargetEvent,
   UserPreferences,
   Weekday,
 } from "../../domain";
+import { PlanningContextPanel } from "../planning/PlanningContextPanel";
+import { WeekPlanOrchestrationPanel } from "../planning/WeekPlanOrchestrationPanel";
+import { usePlanningContext } from "../planning/usePlanningContext";
+import { useWeekPlanOrchestration } from "../planning/useWeekPlanOrchestration";
 import { useProfileSettings } from "../profile/useProfileSettings";
+import { useActiveWeekPlan } from "../weekPlan/useActiveWeekPlan";
+import { WeekPlanRuntimePanel } from "../weekPlan/WeekPlanRuntimePanel";
 
-type ProfileTab = "profile" | "nutrition" | "training" | "week";
+type ProfileTab = "profile" | "nutrition" | "training" | "planning" | "expert";
 
 const weekdays: Weekday[] = [
   "monday",
@@ -42,9 +50,28 @@ const kitchenAppliances: KitchenAppliance[] = [
   "freezer",
 ];
 
+const timeBlockCategories: TimeBlockCategory[] = [
+  "work",
+  "training",
+  "meal",
+  "recovery",
+  "social",
+  "admin",
+  "commute",
+  "sleep",
+  "household",
+  "errand",
+  "custom",
+];
+
+const levelOptions = ["low", "medium", "high"];
+
 export function ProfileView() {
   const navigate = useNavigate();
   const settings = useProfileSettings();
+  const activeWeekPlan = useActiveWeekPlan();
+  const planningContext = usePlanningContext();
+  const orchestration = useWeekPlanOrchestration();
   const [activeTab, setActiveTab] = useState<ProfileTab>("profile");
   const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
   const [preferencesDraft, setPreferencesDraft] = useState<UserPreferences | null>(null);
@@ -72,7 +99,9 @@ export function ProfileView() {
     }
 
     const savedProfile = await settings.saveProfile(profileDraft);
-    const savedPreferences = await settings.savePreferences(preferencesDraft);
+    const savedPreferences = await settings.savePreferences(
+      sanitizeUserPreferences(preferencesDraft),
+    );
 
     if (savedProfile && savedPreferences) {
       setMessage("Profil und Defaults gespeichert.");
@@ -122,8 +151,11 @@ export function ProfileView() {
           <TabButton active={activeTab === "training"} onClick={() => setActiveTab("training")}>
             Training
           </TabButton>
-          <TabButton active={activeTab === "week"} onClick={() => setActiveTab("week")}>
-            Woche
+          <TabButton active={activeTab === "planning"} onClick={() => setActiveTab("planning")}>
+            Planung
+          </TabButton>
+          <TabButton active={activeTab === "expert"} onClick={() => setActiveTab("expert")}>
+            Expert
           </TabButton>
         </div>
       </header>
@@ -147,8 +179,19 @@ export function ProfileView() {
               <TrainingForm preferences={preferencesDraft} onChange={setPreferencesDraft} />
             ) : null}
 
-            {activeTab === "week" ? (
-              <WeekForm preferences={preferencesDraft} onChange={setPreferencesDraft} />
+            {activeTab === "planning" ? (
+              <WeekPlanningForm preferences={preferencesDraft} onChange={setPreferencesDraft} />
+            ) : null}
+
+            {activeTab === "expert" ? (
+              <ProfileExpertPanel
+                profileStatus={settings.status}
+                profileRuntimeStatus={settings.runtimeStatus}
+                profileError={settings.error}
+                activeWeekPlan={activeWeekPlan}
+                planningContext={planningContext}
+                orchestration={orchestration}
+              />
             ) : null}
 
             {message ? (
@@ -250,13 +293,31 @@ function ProfileSummary({
             {profile.displayName}
           </h2>
           <p className="mt-1 text-[12px] text-gray-500">
-            {age ? `${age} Jahre` : "Alter offen"} - {preferences.nutrition.dietType} -{" "}
+            {age ? `${age} Jahre` : "Alter offen"} - {formatOptionLabel(preferences.nutrition.dietType)} -{" "}
             {preferences.training.sessionsPerWeek} Trainings/Woche
             {primaryTarget ? ` - ${primaryTarget.title}` : ""}
           </p>
         </div>
       </div>
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <SummaryMetric label="Fokus" value={preferences.week.focusAreas[0] ?? "Offen"} />
+        <SummaryMetric label="Planung" value={formatOptionLabel(preferences.week.planningStyle)} />
+        <SummaryMetric label="Puffer" value={formatOptionLabel(preferences.week.bufferPreference)} />
+      </div>
     </section>
+  );
+}
+
+function SummaryMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-[14px] bg-[#F7F6F1] px-3 py-2">
+      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">
+        {label}
+      </p>
+      <p className="mt-1 truncate text-[11px] font-bold text-gray-900">
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -1297,7 +1358,7 @@ function TargetEventCard({
   );
 }
 
-function WeekForm({
+function WeekPlanningForm({
   preferences,
   onChange,
 }: {
@@ -1311,118 +1372,110 @@ function WeekForm({
     updateWeek({ sleep: { ...week.sleep, ...patch } });
 
   return (
-    <Section title="Woche Defaults">
-      <SelectInput
-        label="Wochenstart"
-        value={week.weekStartsOn}
-        options={weekdays}
-        onChange={(weekStartsOn) =>
-          updateWeek({ weekStartsOn: weekStartsOn as UserPreferences["week"]["weekStartsOn"] })
-        }
-      />
-      <NumberInput
-        label="Planlaenge Tage"
-        value={week.defaultDateRangeLengthDays}
-        onChange={(defaultDateRangeLengthDays) =>
-          updateWeek({ defaultDateRangeLengthDays: defaultDateRangeLengthDays ?? 7 })
-        }
-      />
-      <LineListInput
-        label="Fokusbereiche"
-        value={week.focusAreas}
-        onChange={(focusAreas) => updateWeek({ focusAreas })}
-      />
-      <SelectInput
-        label="Puffer"
-        value={week.bufferPreference}
-        options={["compact", "balanced", "spacious"]}
-        onChange={(bufferPreference) =>
-          updateWeek({
-            bufferPreference: bufferPreference as UserPreferences["week"]["bufferPreference"],
-          })
-        }
-      />
-      <SelectInput
-        label="Planungsstil"
-        value={week.planningStyle}
-        options={["structured", "flexible", "minimal"]}
-        onChange={(planningStyle) =>
-          updateWeek({ planningStyle: planningStyle as UserPreferences["week"]["planningStyle"] })
-        }
-      />
-      <SelectInput
-        label="Energieverlauf"
-        value={week.energyPattern ?? "morning"}
-        options={["morning", "afternoon", "evening", "variable"]}
-        onChange={(energyPattern) =>
-          updateWeek({ energyPattern: energyPattern as UserPreferences["week"]["energyPattern"] })
-        }
-      />
-      <SelectInput
-        label="Deep Work"
-        value={week.deepWorkPreference ?? "morning"}
-        options={["morning", "afternoon", "evening", "none"]}
-        onChange={(deepWorkPreference) =>
-          updateWeek({
-            deepWorkPreference:
-              deepWorkPreference as UserPreferences["week"]["deepWorkPreference"],
-          })
-        }
-      />
-      <SelectInput
-        label="Social Load"
-        value={week.socialLoadPreference ?? "medium"}
-        options={["low", "medium", "high"]}
-        onChange={(socialLoadPreference) =>
-          updateWeek({
-            socialLoadPreference:
-              socialLoadPreference as UserPreferences["week"]["socialLoadPreference"],
-          })
-        }
-      />
-      <NumberInput
-        label="Max harte Tage"
-        value={week.maxHardDaysPerWeek}
-        onChange={(maxHardDaysPerWeek) => updateWeek({ maxHardDaysPerWeek })}
-      />
-      <NumberInput
-        label="Max Events pro Tag"
-        value={week.maxEventsPerDay}
-        onChange={(maxEventsPerDay) => updateWeek({ maxEventsPerDay })}
-      />
-      <NumberInput
-        label="Max geplante Stunden"
-        value={week.maxPlannedHoursPerDay}
-        onChange={(maxPlannedHoursPerDay) => updateWeek({ maxPlannedHoursPerDay })}
-      />
-      <NumberInput
-        label="Max Kontextwechsel"
-        value={week.maxContextSwitchesPerDay}
-        onChange={(maxContextSwitchesPerDay) => updateWeek({ maxContextSwitchesPerDay })}
-      />
-      <LineListInput
-        label="Geschuetzte Ruhetage"
-        value={week.protectedRestDays ?? []}
-        onChange={(protectedRestDays) =>
-          updateWeek({
-            protectedRestDays: protectedRestDays.filter((day): day is Weekday =>
-              weekdays.includes(day as Weekday),
-            ),
-          })
-        }
-      />
-      <LineListInput
-        label="Arbeitsbloecke"
-        value={week.workBlocks.map(formatBlock)}
-        onChange={(lines) => updateWeek({ workBlocks: lines.map(parseBlock).filter(isTimeBlock) })}
-      />
-      <LineListInput
-        label="Blockierte Zeiten"
-        value={week.blockedTimes.map(formatBlock)}
-        onChange={(lines) => updateWeek({ blockedTimes: lines.map(parseBlock).filter(isTimeBlock) })}
-      />
+    <div className="space-y-5">
+      <Section title="Planungsprofil">
+        <SelectInput
+          label="Wochenstart"
+          value={week.weekStartsOn}
+          options={weekdays}
+          onChange={(weekStartsOn) =>
+            updateWeek({ weekStartsOn: weekStartsOn as UserPreferences["week"]["weekStartsOn"] })
+          }
+        />
+        <NumberInput
+          label="Planlaenge Tage"
+          value={week.defaultDateRangeLengthDays}
+          onChange={(defaultDateRangeLengthDays) =>
+            updateWeek({ defaultDateRangeLengthDays: defaultDateRangeLengthDays ?? 7 })
+          }
+        />
+        <LineListInput
+          label="Fokusbereiche"
+          value={week.focusAreas}
+          onChange={(focusAreas) => updateWeek({ focusAreas })}
+        />
+        <SelectInput
+          label="Puffer"
+          value={week.bufferPreference}
+          options={["compact", "balanced", "spacious"]}
+          onChange={(bufferPreference) =>
+            updateWeek({
+              bufferPreference: bufferPreference as UserPreferences["week"]["bufferPreference"],
+            })
+          }
+        />
+        <SelectInput
+          label="Planungsstil"
+          value={week.planningStyle}
+          options={["structured", "flexible", "minimal"]}
+          onChange={(planningStyle) =>
+            updateWeek({ planningStyle: planningStyle as UserPreferences["week"]["planningStyle"] })
+          }
+        />
+        <SelectInput
+          label="Energieverlauf"
+          value={week.energyPattern ?? "morning"}
+          options={["morning", "afternoon", "evening", "variable"]}
+          onChange={(energyPattern) =>
+            updateWeek({ energyPattern: energyPattern as UserPreferences["week"]["energyPattern"] })
+          }
+        />
+        <SelectInput
+          label="Deep Work"
+          value={week.deepWorkPreference ?? "morning"}
+          options={["morning", "afternoon", "evening", "none"]}
+          onChange={(deepWorkPreference) =>
+            updateWeek({
+              deepWorkPreference:
+                deepWorkPreference as UserPreferences["week"]["deepWorkPreference"],
+            })
+          }
+        />
+        <SelectInput
+          label="Social Load"
+          value={week.socialLoadPreference ?? "medium"}
+          options={levelOptions}
+          onChange={(socialLoadPreference) =>
+            updateWeek({
+              socialLoadPreference:
+                socialLoadPreference as UserPreferences["week"]["socialLoadPreference"],
+            })
+          }
+        />
+      </Section>
 
-      <AdvancedSection title="Puffer und Schlaf">
+      <Section title="Belastung und Erholung">
+        <NumberInput
+          label="Max harte Tage"
+          value={week.maxHardDaysPerWeek}
+          onChange={(maxHardDaysPerWeek) => updateWeek({ maxHardDaysPerWeek })}
+        />
+        <NumberInput
+          label="Max Events pro Tag"
+          value={week.maxEventsPerDay}
+          onChange={(maxEventsPerDay) => updateWeek({ maxEventsPerDay })}
+        />
+        <NumberInput
+          label="Max geplante Stunden"
+          value={week.maxPlannedHoursPerDay}
+          onChange={(maxPlannedHoursPerDay) => updateWeek({ maxPlannedHoursPerDay })}
+        />
+        <NumberInput
+          label="Max Kontextwechsel"
+          value={week.maxContextSwitchesPerDay}
+          onChange={(maxContextSwitchesPerDay) => updateWeek({ maxContextSwitchesPerDay })}
+        />
+        <LineListInput
+          label="Geschuetzte Ruhetage"
+          value={week.protectedRestDays ?? []}
+          onChange={(protectedRestDays) =>
+            updateWeek({
+              protectedRestDays: protectedRestDays.filter((day): day is Weekday =>
+                weekdays.includes(day as Weekday),
+              ),
+            })
+          }
+        />
         <NumberInput
           label="Late Evenings pro Woche"
           value={week.allowedLateEveningsPerWeek}
@@ -1483,51 +1536,382 @@ function WeekForm({
             updateSleep({ latestWakeTime: emptyToUndefined(latestWakeTime) })
           }
         />
-      </AdvancedSection>
+      </Section>
 
-      <AdvancedSection title="Zeitbloecke JSON">
-        <JsonInput
-          label="Fixed Appointments"
-          value={week.fixedAppointments ?? []}
-          onChange={(fixedAppointments) => updateWeek({ fixedAppointments: fixedAppointments as TimeBlock[] })}
+      <Section title="Woechentliche Zeitfenster">
+        <WeekTimeBlockList
+          title="Arbeitsbloecke"
+          blocks={week.workBlocks}
+          onChange={(workBlocks) => updateWeek({ workBlocks })}
         />
-        <JsonInput
-          label="Recurring Appointments"
-          value={week.recurringAppointments ?? []}
-          onChange={(recurringAppointments) =>
-            updateWeek({
-              recurringAppointments:
-                recurringAppointments as UserPreferences["week"]["recurringAppointments"],
-            })
+        <WeekTimeBlockList
+          title="Blockierte Zeiten"
+          blocks={week.blockedTimes}
+          onChange={(blockedTimes) => updateWeek({ blockedTimes })}
+        />
+      </Section>
+
+      <Section title="Planbare Blocks">
+        <TimeBlockList
+          title="Fixe Termine"
+          blocks={week.fixedAppointments ?? []}
+          onChange={(fixedAppointments) => updateWeek({ fixedAppointments })}
+        />
+        <RecurringTimeBlockList
+          title="Wiederkehrende Termine"
+          blocks={week.recurringAppointments ?? []}
+          onChange={(recurringAppointments) => updateWeek({ recurringAppointments })}
+        />
+        <TimeBlockList
+          title="Must-do Blocks"
+          blocks={week.mustDoBlocks ?? []}
+          onChange={(mustDoBlocks) => updateWeek({ mustDoBlocks })}
+        />
+        <TimeBlockList
+          title="Optionale Blocks"
+          blocks={week.optionalBlocks ?? []}
+          onChange={(optionalBlocks) => updateWeek({ optionalBlocks })}
+        />
+        <TimeBlockList
+          title="Haushalt"
+          blocks={week.householdBlocks ?? []}
+          defaultCategory="household"
+          onChange={(householdBlocks) => updateWeek({ householdBlocks })}
+        />
+        <TimeBlockList
+          title="Erledigungen"
+          blocks={week.errandsBlocks ?? []}
+          defaultCategory="errand"
+          onChange={(errandsBlocks) => updateWeek({ errandsBlocks })}
+        />
+        <TimeBlockList
+          title="Meal Prep"
+          blocks={week.mealPrepBlocks ?? []}
+          defaultCategory="meal"
+          onChange={(mealPrepBlocks) => updateWeek({ mealPrepBlocks })}
+        />
+      </Section>
+    </div>
+  );
+}
+
+function WeekTimeBlockList({
+  title,
+  blocks,
+  onChange,
+}: {
+  title: string;
+  blocks: UserPreferences["week"]["workBlocks"];
+  onChange: (blocks: UserPreferences["week"]["workBlocks"]) => void;
+}) {
+  const updateBlock = (
+    index: number,
+    patch: Partial<UserPreferences["week"]["workBlocks"][number]>,
+  ) => {
+    onChange(blocks.map((block, blockIndex) => (blockIndex === index ? { ...block, ...patch } : block)));
+  };
+
+  return (
+    <AdvancedSection title={title}>
+      {blocks.map((block, index) => (
+        <div key={`${title}-${index}`} className="rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-[12px] font-bold text-gray-900">
+              {formatOptionLabel(block.day)} {block.start}-{block.end}
+            </p>
+            <button
+              type="button"
+              onClick={() => onChange(blocks.filter((_, blockIndex) => blockIndex !== index))}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F7EEEE] text-[#9C3A3A]"
+              aria-label={`${title} entfernen`}
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+          <div className="grid gap-3">
+            <SelectInput
+              label="Wochentag"
+              value={block.day}
+              options={weekdays}
+              onChange={(day) => updateBlock(index, { day: day as Weekday })}
+            />
+            <TextInput
+              label="Start"
+              value={block.start}
+              onChange={(start) => updateBlock(index, { start })}
+            />
+            <TextInput
+              label="Ende"
+              value={block.end}
+              onChange={(end) => updateBlock(index, { end })}
+            />
+            <TextInput
+              label="Label"
+              value={block.label ?? ""}
+              onChange={(label) => updateBlock(index, { label: emptyToUndefined(label) })}
+            />
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...blocks, createDefaultWeekTimeBlock(title)])}
+        className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#D9D6CC] bg-white text-[12px] font-bold text-gray-800"
+      >
+        <Plus size={16} />
+        {title} hinzufuegen
+      </button>
+    </AdvancedSection>
+  );
+}
+
+function TimeBlockList({
+  title,
+  blocks,
+  defaultCategory = "custom",
+  onChange,
+}: {
+  title: string;
+  blocks: TimeBlock[];
+  defaultCategory?: TimeBlockCategory;
+  onChange: (blocks: TimeBlock[]) => void;
+}) {
+  const updateBlock = (id: string, patch: Partial<TimeBlock>) => {
+    onChange(blocks.map((block) => (block.id === id ? { ...block, ...patch } : block)));
+  };
+
+  return (
+    <AdvancedSection title={title}>
+      {blocks.map((block) => (
+        <TimeBlockCard
+          key={block.id}
+          block={block}
+          onChange={(patch) => updateBlock(block.id, patch)}
+          onRemove={() => onChange(blocks.filter((candidate) => candidate.id !== block.id))}
+        />
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...blocks, createDefaultTimeBlock(defaultCategory)])}
+        className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#D9D6CC] bg-white text-[12px] font-bold text-gray-800"
+      >
+        <Plus size={16} />
+        {title} hinzufuegen
+      </button>
+    </AdvancedSection>
+  );
+}
+
+function RecurringTimeBlockList({
+  title,
+  blocks,
+  onChange,
+}: {
+  title: string;
+  blocks: RecurringTimeBlock[];
+  onChange: (blocks: RecurringTimeBlock[]) => void;
+}) {
+  const updateBlock = (id: string, patch: Partial<RecurringTimeBlock>) => {
+    onChange(blocks.map((block) => (block.id === id ? { ...block, ...patch } : block)));
+  };
+
+  return (
+    <AdvancedSection title={title}>
+      {blocks.map((block) => (
+        <TimeBlockCard
+          key={block.id}
+          block={block}
+          includeWeekday
+          onChange={(patch) => updateBlock(block.id, patch)}
+          onRemove={() => onChange(blocks.filter((candidate) => candidate.id !== block.id))}
+        />
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...blocks, createDefaultRecurringTimeBlock()])}
+        className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#D9D6CC] bg-white text-[12px] font-bold text-gray-800"
+      >
+        <Plus size={16} />
+        {title} hinzufuegen
+      </button>
+    </AdvancedSection>
+  );
+}
+
+function TimeBlockCard({
+  block,
+  includeWeekday = false,
+  onChange,
+  onRemove,
+}: {
+  block: TimeBlock | RecurringTimeBlock;
+  includeWeekday?: boolean;
+  onChange: (patch: Partial<TimeBlock & RecurringTimeBlock>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-[12px] font-bold text-gray-900">
+            {block.title || "Unbenannter Block"}
+          </p>
+          <p className="mt-0.5 text-[11px] text-gray-500">
+            {includeWeekday && "weekday" in block ? `${formatOptionLabel(block.weekday)} · ` : ""}
+            {block.start || "--:--"}-{block.end || "--:--"} · {formatOptionLabel(block.category)}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F7EEEE] text-[#9C3A3A]"
+          aria-label="Block entfernen"
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
+      <div className="grid gap-3">
+        {includeWeekday && "weekday" in block ? (
+          <SelectInput
+            label="Wochentag"
+            value={block.weekday}
+            options={weekdays}
+            onChange={(weekday) => onChange({ weekday: weekday as Weekday })}
+          />
+        ) : null}
+        <TextInput label="Titel" value={block.title} onChange={(title) => onChange({ title })} />
+        <SelectInput
+          label="Kategorie"
+          value={block.category}
+          options={timeBlockCategories}
+          onChange={(category) => onChange({ category: category as TimeBlockCategory })}
+        />
+        <TextInput label="Start" value={block.start} onChange={(start) => onChange({ start })} />
+        <TextInput label="Ende" value={block.end} onChange={(end) => onChange({ end })} />
+        <BooleanInput
+          label="Fixiert"
+          value={block.isFixed}
+          onChange={(isFixed) => onChange({ isFixed })}
+        />
+        <SelectInput
+          label="Prioritaet"
+          value={block.priority ?? ""}
+          options={["", ...levelOptions]}
+          onChange={(priority) => onChange({ priority: priority ? (priority as TimeBlock["priority"]) : undefined })}
+        />
+        <SelectInput
+          label="Energiebedarf"
+          value={block.energyDemand ?? ""}
+          options={["", ...levelOptions]}
+          onChange={(energyDemand) =>
+            onChange({ energyDemand: energyDemand ? (energyDemand as TimeBlock["energyDemand"]) : undefined })
           }
         />
-        <JsonInput
-          label="Must Do Blocks"
-          value={week.mustDoBlocks ?? []}
-          onChange={(mustDoBlocks) => updateWeek({ mustDoBlocks: mustDoBlocks as TimeBlock[] })}
+        <TextInput
+          label="Ort"
+          value={block.location ?? ""}
+          onChange={(location) => onChange({ location: emptyToUndefined(location) })}
         />
-        <JsonInput
-          label="Optional Blocks"
-          value={week.optionalBlocks ?? []}
-          onChange={(optionalBlocks) => updateWeek({ optionalBlocks: optionalBlocks as TimeBlock[] })}
+        <TextInput
+          label="Notizen"
+          value={block.notes ?? ""}
+          onChange={(notes) => onChange({ notes: emptyToUndefined(notes) })}
         />
-        <JsonInput
-          label="Household Blocks"
-          value={week.householdBlocks ?? []}
-          onChange={(householdBlocks) => updateWeek({ householdBlocks: householdBlocks as TimeBlock[] })}
+      </div>
+    </div>
+  );
+}
+
+function ProfileExpertPanel({
+  profileStatus,
+  profileRuntimeStatus,
+  profileError,
+  activeWeekPlan,
+  planningContext,
+  orchestration,
+}: {
+  profileStatus: ReturnType<typeof useProfileSettings>["status"];
+  profileRuntimeStatus: ReturnType<typeof useProfileSettings>["runtimeStatus"];
+  profileError: string | null;
+  activeWeekPlan: ReturnType<typeof useActiveWeekPlan>;
+  planningContext: ReturnType<typeof usePlanningContext>;
+  orchestration: ReturnType<typeof useWeekPlanOrchestration>;
+}) {
+  return (
+    <div className="space-y-5">
+      <Section title="Profil-Systemstatus">
+        <StatusGrid
+          items={[
+            ["Profil", `${profileRuntimeStatus} · ${profileStatus}`],
+            ["Wochenplan", `${activeWeekPlan.runtimeStatus} · ${activeWeekPlan.status}`],
+            ["Planung", `${planningContext.runtimeStatus} · ${planningContext.status}`],
+          ]}
         />
-        <JsonInput
-          label="Errands Blocks"
-          value={week.errandsBlocks ?? []}
-          onChange={(errandsBlocks) => updateWeek({ errandsBlocks: errandsBlocks as TimeBlock[] })}
-        />
-        <JsonInput
-          label="Meal Prep Blocks"
-          value={week.mealPrepBlocks ?? []}
-          onChange={(mealPrepBlocks) => updateWeek({ mealPrepBlocks: mealPrepBlocks as TimeBlock[] })}
+        {profileError ? (
+          <div className="rounded-[14px] border border-[#F0D6D6] bg-[#FFF7F7] p-3 text-[12px] font-bold text-[#9C3A3A]">
+            {profileError}
+          </div>
+        ) : null}
+      </Section>
+
+      <AdvancedSection title="Wochenplan-Speicher">
+        <WeekPlanRuntimePanel
+          status={activeWeekPlan.status}
+          runtimeStatus={activeWeekPlan.runtimeStatus}
+          error={activeWeekPlan.error}
+          userEmail={activeWeekPlan.userEmail}
+          isRemoteConfigured={activeWeekPlan.isRemoteConfigured}
+          localFirstStatus={activeWeekPlan.localFirstStatus}
+          onReload={() => void activeWeekPlan.reload()}
+          onSignIn={activeWeekPlan.signIn}
+          onCreateAccount={activeWeekPlan.createAccount}
+          onSignOut={activeWeekPlan.signOut}
+          onSaveRemoteDemoPlan={activeWeekPlan.saveRemoteDemoPlan}
+          onArchiveActivePlan={activeWeekPlan.archiveActivePlan}
+          onRetryRemoteSave={activeWeekPlan.retryRemoteSave}
         />
       </AdvancedSection>
-    </Section>
+
+      <AdvancedSection title="Planungsgrundlage">
+        <PlanningContextPanel
+          status={planningContext.status}
+          context={planningContext.context}
+          error={planningContext.error}
+          onReload={() => void planningContext.reload()}
+        />
+      </AdvancedSection>
+
+      <AdvancedSection title="Wochenplan-Entwurf">
+        <WeekPlanOrchestrationPanel
+          orchestration={orchestration}
+          onDraftSaved={() => {
+            void activeWeekPlan.reload();
+            void planningContext.reload();
+          }}
+          onDraftActivated={() => {
+            void activeWeekPlan.reload();
+            void planningContext.reload();
+          }}
+        />
+      </AdvancedSection>
+    </div>
+  );
+}
+
+function StatusGrid({ items }: { items: [string, string][] }) {
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      {items.map(([label, value]) => (
+        <div key={label} className="min-w-0 rounded-[14px] border border-gray-100 bg-white p-3 shadow-sm">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">
+            {label}
+          </p>
+          <p className="mt-1 truncate text-[12px] font-bold text-gray-900">
+            {value}
+          </p>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1651,7 +2035,7 @@ function SelectInput({
       >
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {formatOptionLabel(option)}
           </option>
         ))}
       </select>
@@ -1770,29 +2154,210 @@ function emptyToUndefined(value: string) {
   return value.trim() ? value.trim() : undefined;
 }
 
-function formatBlock(block: UserPreferences["week"]["workBlocks"][number]) {
-  return `${block.day} ${block.start}-${block.end}${block.label ? ` ${block.label}` : ""}`;
-}
-
-function parseBlock(value: string): UserPreferences["week"]["workBlocks"][number] | null {
-  const match = value.match(
-    /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(\d{2}:\d{2})-(\d{2}:\d{2})(?:\s+(.+))?$/,
-  );
-
-  if (!match) {
-    return null;
-  }
-
+function createDefaultWeekTimeBlock(title: string): UserPreferences["week"]["workBlocks"][number] {
   return {
-    day: match[1] as UserPreferences["week"]["weekStartsOn"],
-    start: match[2],
-    end: match[3],
-    label: match[4],
+    day: "monday",
+    start: "09:00",
+    end: "10:00",
+    label: title,
   };
 }
 
-function isTimeBlock(
-  value: UserPreferences["week"]["workBlocks"][number] | null,
-): value is UserPreferences["week"]["workBlocks"][number] {
-  return value !== null;
+function createDefaultTimeBlock(category: TimeBlockCategory = "custom"): TimeBlock {
+  return {
+    id: createLocalId("block"),
+    title: "Neuer Block",
+    category,
+    start: "09:00",
+    end: "10:00",
+    isFixed: false,
+    priority: "medium",
+    energyDemand: "medium",
+  };
+}
+
+function createDefaultRecurringTimeBlock(): RecurringTimeBlock {
+  return {
+    ...createDefaultTimeBlock("custom"),
+    weekday: "monday",
+  };
+}
+
+function createLocalId(prefix: string) {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function sanitizeUserPreferences(preferences: UserPreferences): UserPreferences {
+  const week = preferences.week;
+
+  return {
+    ...preferences,
+    week: {
+      ...week,
+      workBlocks: sanitizeWeekTimeBlocks(week.workBlocks),
+      blockedTimes: sanitizeWeekTimeBlocks(week.blockedTimes),
+      fixedAppointments: sanitizeTimeBlocks(week.fixedAppointments),
+      recurringAppointments: sanitizeRecurringTimeBlocks(week.recurringAppointments),
+      mustDoBlocks: sanitizeTimeBlocks(week.mustDoBlocks),
+      optionalBlocks: sanitizeTimeBlocks(week.optionalBlocks),
+      householdBlocks: sanitizeTimeBlocks(week.householdBlocks),
+      errandsBlocks: sanitizeTimeBlocks(week.errandsBlocks),
+      mealPrepBlocks: sanitizeTimeBlocks(week.mealPrepBlocks),
+    },
+  };
+}
+
+function sanitizeWeekTimeBlocks(blocks: UserPreferences["week"]["workBlocks"]) {
+  return blocks
+    .filter((block) => weekdays.includes(block.day) && isValidTimeRange(block.start, block.end))
+    .map((block) => ({
+      day: block.day,
+      start: block.start.trim(),
+      end: block.end.trim(),
+      label: block.label?.trim() || undefined,
+    }));
+}
+
+function sanitizeTimeBlocks(blocks?: TimeBlock[]) {
+  return blocks
+    ?.filter(isValidTimeBlock)
+    .map((block) => ({
+      ...block,
+      title: block.title.trim(),
+      start: block.start.trim(),
+      end: block.end.trim(),
+      location: block.location?.trim() || undefined,
+      notes: block.notes?.trim() || undefined,
+    }));
+}
+
+function sanitizeRecurringTimeBlocks(blocks?: RecurringTimeBlock[]) {
+  return blocks
+    ?.filter((block) => weekdays.includes(block.weekday) && isValidTimeBlock(block))
+    .map((block) => ({
+      ...block,
+      title: block.title.trim(),
+      start: block.start.trim(),
+      end: block.end.trim(),
+      location: block.location?.trim() || undefined,
+      notes: block.notes?.trim() || undefined,
+    }));
+}
+
+function isValidTimeBlock(block: TimeBlock | RecurringTimeBlock) {
+  return (
+    Boolean(block.id.trim()) &&
+    Boolean(block.title.trim()) &&
+    timeBlockCategories.includes(block.category) &&
+    isValidTimeRange(block.start, block.end)
+  );
+}
+
+function isValidTimeRange(start: string, end: string) {
+  return isValidTime(start) && isValidTime(end) && start < end;
+}
+
+function isValidTime(value: string) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim());
+}
+
+function formatOptionLabel(value: string) {
+  const labels: Record<string, string> = {
+    "": "Nicht gesetzt",
+    monday: "Montag",
+    tuesday: "Dienstag",
+    wednesday: "Mittwoch",
+    thursday: "Donnerstag",
+    friday: "Freitag",
+    saturday: "Samstag",
+    sunday: "Sonntag",
+    low: "Niedrig",
+    medium: "Mittel",
+    high: "Hoch",
+    compact: "Kompakt",
+    balanced: "Ausgewogen",
+    spacious: "Grosszuegig",
+    structured: "Strukturiert",
+    flexible: "Flexibel",
+    minimalist: "Minimalistisch",
+    minimal: "Minimal",
+    morning: "Morgens",
+    midday: "Mittags",
+    afternoon: "Nachmittags",
+    evening: "Abends",
+    variable: "Variabel",
+    none: "Keine",
+    work: "Arbeit",
+    training: "Training",
+    meal: "Mahlzeit",
+    recovery: "Erholung",
+    social: "Sozial",
+    admin: "Admin",
+    commute: "Pendeln",
+    sleep: "Schlaf",
+    household: "Haushalt",
+    errand: "Erledigung",
+    custom: "Individuell",
+    omnivore: "Omnivor",
+    vegetarian: "Vegetarisch",
+    vegan: "Vegan",
+    pescetarian: "Pescetarisch",
+    maintain: "Halten",
+    fat_loss: "Fettverlust",
+    muscle_gain: "Muskelaufbau",
+    performance: "Performance",
+    health: "Gesundheit",
+    normal: "Normal",
+    very_high: "Sehr hoch",
+    budget: "Budget",
+    convenience: "Komfort",
+    basic: "Basis",
+    intermediate: "Fortgeschritten",
+    advanced: "Advanced",
+    daily: "Taeglich",
+    batch: "Batch",
+    mixed: "Gemischt",
+    elaborate: "Aufwendig",
+    never: "Nie",
+    rare: "Selten",
+    sometimes: "Manchmal",
+    often: "Oft",
+    light: "Leicht",
+    big: "Gross",
+    strength: "Kraft",
+    hypertrophy: "Hypertrophie",
+    endurance: "Ausdauer",
+    mobility: "Mobilitaet",
+    "general-fitness": "Allgemeine Fitness",
+    general_fitness: "Allgemeine Fitness",
+    beginner: "Einsteiger",
+    moderate: "Moderat",
+    time: "Zeit",
+    fatigue: "Fatigue",
+    equipment: "Equipment",
+    motivation: "Motivation",
+    injury: "Verletzung",
+    base: "Base",
+    build: "Build",
+    peak: "Peak",
+    deload: "Deload",
+    maintenance: "Maintenance",
+    loose: "Locker",
+    strict: "Strikt",
+    running_race: "Laufrennen",
+    cycling_event: "Radevent",
+    triathlon: "Triathlon",
+    strength_test: "Krafttest",
+    mobility_goal: "Mobilitaetsziel",
+    other: "Sonstiges",
+    estimated: "Geschaetzt",
+    tested: "Getestet",
+    device_based: "Geraetebasiert",
+  };
+
+  return labels[value] ?? value;
 }

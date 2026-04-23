@@ -16,7 +16,7 @@ export function PlanningContextPanel({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#4A634A]">
-            Planning context
+            Planungsgrundlage
           </p>
           <p className="mt-1 text-[13px] font-bold text-gray-900">
             {context ? formatReadiness(context.readiness) : status}
