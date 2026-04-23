@@ -160,7 +160,7 @@ export function ProfileView() {
         </div>
       </header>
 
-      <main className="hide-scrollbar flex-1 overflow-y-auto px-6 py-5 pb-28">
+      <main className="hide-scrollbar flex-1 overflow-y-auto px-6 py-5 pb-[220px]">
         <RuntimeNotice status={settings.status} error={settings.error} />
 
         {profileDraft && preferencesDraft ? (
