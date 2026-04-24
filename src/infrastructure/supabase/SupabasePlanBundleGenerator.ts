@@ -38,6 +38,14 @@ export class SupabasePlanBundleGenerator implements PlanBundleGeneratorPort {
       if (refreshedToken) {
         return refreshedToken;
       }
+
+      throw new PlanBundleGenerationErrorClass({
+        error: "Plan bundle generation failed: authentication required.",
+        code: "auth_required",
+        hint: "Bitte erneut anmelden.",
+        details: refreshedSession.error?.message,
+        status: 401,
+      });
     }
 
     const currentSession = await this.client.auth.getSession();

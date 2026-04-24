@@ -171,6 +171,11 @@ export function useCreateHub(): CreateHubState {
     } catch (caught) {
       setStatus("error");
       if (caught instanceof PlanBundleGenerationErrorClass) {
+        if (caught.code === "auth_required") {
+          setRuntimeStatus("remote-signed-out");
+          setUserId(null);
+          setUserEmail(null);
+        }
         setGenerationError(caught);
         setError(caught.message);
       } else {
