@@ -16,6 +16,7 @@ import {
 import type {
   AuthCredentials,
   PlanBundleActivationMode,
+  PlanBundleGenerationError,
   PlanBundleGenerationRequest,
 } from "../../application";
 import { useCreateHub } from "../createHub/useCreateHub";
@@ -341,6 +342,7 @@ function RuntimeCard({ createHub }: { createHub: ReturnType<typeof useCreateHub>
   const [password, setPassword] = useState("");
   const credentials: AuthCredentials = { email, password };
   const isSignedIn = createHub.runtimeStatus === "remote-signed-in";
+  const generationError = createHub.generationError;
 
   return (
     <section className="rounded-[18px] border border-[#E5E0D4] bg-white p-4 shadow-sm">
@@ -361,7 +363,35 @@ function RuntimeCard({ createHub }: { createHub: ReturnType<typeof useCreateHub>
               ? createHub.userEmail ?? "Supabase Session aktiv."
               : "KI-Plaene laufen ueber eine geschuetzte Supabase Edge Function."}
           </p>
-          {createHub.error ? (
+          {generationError ? (
+            <div className="mt-3 rounded-[14px] border border-[#F0D6D6] bg-[#FFF7F7] p-3">
+              <p className="text-[12px] font-bold text-[#9C3A3A]">
+                {getGenerationErrorHeadline(generationError)}
+              </p>
+              <p className="mt-1 text-[11px] leading-snug text-[#8E4A4A]">
+                {getGenerationErrorDescription(generationError)}
+              </p>
+              {generationError.hint ? (
+                <p className="mt-2 text-[11px] font-bold text-[#9C3A3A]">
+                  {generationError.hint}
+                </p>
+              ) : null}
+              {(generationError.technicalDetails || generationError.status) ? (
+                <details className="mt-3 rounded-[12px] border border-[#E7CACA] bg-white/80 p-3">
+                  <summary className="cursor-pointer text-[11px] font-bold text-[#8E4A4A]">
+                    Technische Details
+                  </summary>
+                  <div className="mt-2 space-y-1 text-[11px] leading-snug text-[#6F5B5B]">
+                    <p>Code: {generationError.code}</p>
+                    {generationError.status ? <p>HTTP-Status: {generationError.status}</p> : null}
+                    {generationError.technicalDetails ? (
+                      <p className="break-words">{generationError.technicalDetails}</p>
+                    ) : null}
+                  </div>
+                </details>
+              ) : null}
+            </div>
+          ) : createHub.error ? (
             <p className="mt-2 text-[11px] leading-snug text-[#9C3A3A]">
               {createHub.error}
             </p>
@@ -693,6 +723,44 @@ function ContextStep({
       <OutputPreferencesBlock output={output} onChange={onOutputChange} />
     </section>
   );
+}
+
+function getGenerationErrorHeadline(error: PlanBundleGenerationError) {
+  switch (error.code) {
+    case "env_not_configured":
+      return "KI-Backend ist nicht vollstaendig konfiguriert.";
+    case "auth_required":
+      return "Die Sitzung ist nicht mehr gueltig.";
+    case "openai_timeout":
+      return "Die KI-Antwort hat zu lange gedauert.";
+    case "openai_request_failed":
+      return "Die KI-Generierung ist aktuell nicht erreichbar.";
+    case "openai_response_invalid":
+      return "Die KI-Antwort konnte nicht verarbeitet werden.";
+    case "invalid_request":
+      return "Die Anfrage konnte nicht verarbeitet werden.";
+    default:
+      return "Die KI-Generierung ist fehlgeschlagen.";
+  }
+}
+
+function getGenerationErrorDescription(error: PlanBundleGenerationError) {
+  switch (error.code) {
+    case "env_not_configured":
+      return "Die Edge Function laeuft, aber benoetigte Secrets wie OPENAI_API_KEY fehlen.";
+    case "auth_required":
+      return "Bitte melde dich erneut an und starte die Generierung noch einmal.";
+    case "openai_timeout":
+      return "Das Backend hat innerhalb des Zeitlimits keine Antwort von OpenAI erhalten.";
+    case "openai_request_failed":
+      return "Der Request an OpenAI oder die Edge Function ist fehlgeschlagen.";
+    case "openai_response_invalid":
+      return "OpenAI hat geantwortet, aber die Rueckgabe passt nicht zum erwarteten Planformat.";
+    case "invalid_request":
+      return "Mindestens ein Eingabewert wurde vom Backend als ungueltig erkannt.";
+    default:
+      return error.message;
+  }
 }
 
 function PreviewStep({ createHub }: { createHub: ReturnType<typeof useCreateHub> }) {

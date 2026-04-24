@@ -95,6 +95,23 @@ interface AiPlanBundle {
   weekItems: AiWeekItem[];
 }
 
+type ErrorCode =
+  | "auth_required"
+  | "invalid_request"
+  | "env_not_configured"
+  | "openai_timeout"
+  | "openai_request_failed"
+  | "openai_response_invalid"
+  | "unexpected_error";
+
+interface ErrorResponseBody {
+  error: string;
+  code: ErrorCode;
+  hint?: string;
+  details?: string;
+  status?: number;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -113,6 +130,28 @@ const weekCategories: WeekPlanEventCategory[] = [
   "lernen",
   "ehrenamt",
 ];
+
+class FunctionError extends Error {
+  readonly code: ErrorCode;
+  readonly status: number;
+  readonly hint?: string;
+  readonly details?: string;
+
+  constructor({
+    error,
+    code,
+    status,
+    hint,
+    details,
+  }: ErrorResponseBody) {
+    super(error);
+    this.name = "FunctionError";
+    this.code = code;
+    this.status = status ?? 500;
+    this.hint = hint;
+    this.details = details;
+  }
+}
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
@@ -136,8 +175,7 @@ Deno.serve(async (request) => {
 
     return jsonResponse(bundle);
   } catch (caught) {
-    const message = caught instanceof Error ? caught.message : "Plan generation failed.";
-    return jsonResponse({ error: message }, getStatusForError(message));
+    return jsonResponse(toErrorResponse(caught), getStatusForError(caught));
   }
 });
 
@@ -154,7 +192,13 @@ async function requireUser(authHeader: string) {
   const { data, error } = await client.auth.getUser();
 
   if (error || !data.user) {
-    throw new Error("Authentication required.");
+    throw new FunctionError({
+      error: "Authentication required.",
+      code: "auth_required",
+      status: 401,
+      hint: "Bitte erneut anmelden.",
+      details: error?.message,
+    });
   }
 
   return data.user;
@@ -170,37 +214,65 @@ async function generateAiBundle(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        instructions:
-          [
-            "Create an editable German wellness planning draft using the supplied profile, preferences, current state, request controls, and output preferences as planning context.",
-            "Do not provide medical advice. Keep the plan conservative when riskTolerance is conservative or balanced.",
-            "Respect hard constraints, avoidThisWeek entries, protected rest days, target events, training platforms, and recovery limits.",
-            "Return practical meals, workouts, and week structure only. Keep every date inside the requested range. Use empty strings for absent times.",
-          ].join(" "),
-        input: JSON.stringify(input),
-        text: {
-          format: {
-            type: "json_schema",
-            name: "weeknary_plan_bundle",
-            strict: true,
-            schema: aiPlanBundleSchema,
-          },
+    let response: Response;
+
+    try {
+      response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
-      }),
-    });
+        body: JSON.stringify({
+          model,
+          instructions:
+            [
+              "Create an editable German wellness planning draft using the supplied profile, preferences, current state, request controls, and output preferences as planning context.",
+              "Do not provide medical advice. Keep the plan conservative when riskTolerance is conservative or balanced.",
+              "Respect hard constraints, avoidThisWeek entries, protected rest days, target events, training platforms, and recovery limits.",
+              "Return practical meals, workouts, and week structure only. Keep every date inside the requested range. Use empty strings for absent times.",
+            ].join(" "),
+          input: JSON.stringify(input),
+          text: {
+            format: {
+              type: "json_schema",
+              name: "weeknary_plan_bundle",
+              strict: true,
+              schema: aiPlanBundleSchema,
+            },
+          },
+        }),
+      });
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") {
+        throw new FunctionError({
+          error: "Plan generation timed out.",
+          code: "openai_timeout",
+          status: 504,
+          hint: "Bitte spaeter erneut versuchen.",
+          details: `OpenAI request exceeded ${timeoutMs}ms timeout.`,
+        });
+      }
+
+      throw new FunctionError({
+        error: "OpenAI request failed.",
+        code: "openai_request_failed",
+        status: 502,
+        hint: "Bitte spaeter erneut versuchen.",
+        details: caught instanceof Error ? caught.message : String(caught),
+      });
+    }
 
     if (!response.ok) {
       const details = await response.text();
-      throw new Error(`OpenAI request failed: ${response.status} ${details}`);
+      throw new FunctionError({
+        error: "OpenAI request failed.",
+        code: "openai_request_failed",
+        status: 502,
+        hint: "Bitte spaeter erneut versuchen.",
+        details: `OpenAI status ${response.status}: ${truncateDetails(details)}`,
+      });
     }
 
     const payload = await response.json();
@@ -217,10 +289,28 @@ function parseAiBundle(payload: Record<string, unknown>): AiPlanBundle {
       : extractOutputText(payload.output);
 
   if (!outputText) {
-    throw new Error("OpenAI response did not contain JSON output.");
+    throw new FunctionError({
+      error: "OpenAI response did not contain JSON output.",
+      code: "openai_response_invalid",
+      status: 502,
+      hint: "Bitte spaeter erneut versuchen.",
+    });
   }
 
-  const parsed = JSON.parse(outputText) as AiPlanBundle;
+  let parsed: AiPlanBundle;
+
+  try {
+    parsed = JSON.parse(outputText) as AiPlanBundle;
+  } catch (caught) {
+    throw new FunctionError({
+      error: "OpenAI response was not valid JSON.",
+      code: "openai_response_invalid",
+      status: 502,
+      hint: "Bitte spaeter erneut versuchen.",
+      details: caught instanceof Error ? caught.message : String(caught),
+    });
+  }
+
   validateAiBundle(parsed);
   return parsed;
 }
@@ -427,31 +517,61 @@ function buildDomainBundle(
 
 function validateRequest(request: PlanBundleGenerationRequest) {
   if (!request?.dateRange?.startDate || !request.dateRange.endDate) {
-    throw new Error("dateRange is required.");
+    throw new FunctionError({
+      error: "dateRange is required.",
+      code: "invalid_request",
+      status: 400,
+      hint: "Bitte den Zeitraum pruefen.",
+    });
   }
 
   if (request.dateRange.startDate > request.dateRange.endDate) {
-    throw new Error("dateRange is invalid.");
+    throw new FunctionError({
+      error: "dateRange is invalid.",
+      code: "invalid_request",
+      status: 400,
+      hint: "Bitte den Zeitraum pruefen.",
+    });
   }
 
   if (getDatesInRange(request.dateRange.startDate, request.dateRange.endDate).length > 14) {
-    throw new Error("dateRange must not exceed 14 days.");
+    throw new FunctionError({
+      error: "dateRange must not exceed 14 days.",
+      code: "invalid_request",
+      status: 400,
+      hint: "Bitte einen Zeitraum von maximal 14 Tagen waehlen.",
+    });
   }
 
   if (request.timezone !== "Europe/Berlin" || request.locale !== "de-DE") {
-    throw new Error("Unsupported locale or timezone.");
+    throw new FunctionError({
+      error: "Unsupported locale or timezone.",
+      code: "invalid_request",
+      status: 400,
+      hint: "Bitte de-DE und Europe/Berlin verwenden.",
+    });
   }
 }
 
 function validateAiBundle(bundle: AiPlanBundle) {
   if (!bundle.summary?.trim()) {
-    throw new Error("Generated summary is missing.");
+    throw new FunctionError({
+      error: "Generated summary is missing.",
+      code: "openai_response_invalid",
+      status: 502,
+      hint: "Bitte spaeter erneut versuchen.",
+    });
   }
 
   for (const day of bundle.mealsByDay) {
     for (const meal of day.meals) {
       if (!meal.title.trim()) {
-        throw new Error("Generated meal title is missing.");
+        throw new FunctionError({
+          error: "Generated meal title is missing.",
+          code: "openai_response_invalid",
+          status: 502,
+          hint: "Bitte spaeter erneut versuchen.",
+        });
       }
     }
   }
@@ -459,14 +579,24 @@ function validateAiBundle(bundle: AiPlanBundle) {
   for (const day of bundle.trainingByDay) {
     for (const workout of day.workouts) {
       if (!workout.title.trim()) {
-        throw new Error("Generated workout title is missing.");
+        throw new FunctionError({
+          error: "Generated workout title is missing.",
+          code: "openai_response_invalid",
+          status: 502,
+          hint: "Bitte spaeter erneut versuchen.",
+        });
       }
     }
   }
 
   for (const item of bundle.weekItems) {
     if (!weekCategories.includes(item.category)) {
-      throw new Error(`Generated week item category ${item.category} is invalid.`);
+      throw new FunctionError({
+        error: `Generated week item category ${item.category} is invalid.`,
+        code: "openai_response_invalid",
+        status: 502,
+        hint: "Bitte spaeter erneut versuchen.",
+      });
     }
   }
 }
@@ -604,23 +734,21 @@ function requireEnv(key: string) {
   const value = Deno.env.get(key)?.trim();
 
   if (!value) {
-    throw new Error(`${key} is not configured.`);
+    throw new FunctionError({
+      error: `${key} is not configured.`,
+      code: "env_not_configured",
+      status: 500,
+      hint: "KI-Backend ist nicht vollstaendig konfiguriert.",
+      details: `Missing edge function secret: ${key}`,
+    });
   }
 
   return value;
 }
 
-function getStatusForError(message: string) {
-  if (message.includes("Authentication")) {
-    return 401;
-  }
-
-  if (
-    message.includes("dateRange") ||
-    message.includes("locale") ||
-    message.includes("timezone")
-  ) {
-    return 400;
+function getStatusForError(caught: unknown) {
+  if (caught instanceof FunctionError) {
+    return caught.status;
   }
 
   return 500;
@@ -634,6 +762,33 @@ function jsonResponse(body: unknown, status = 200) {
       "Content-Type": "application/json",
     },
   });
+}
+
+function toErrorResponse(caught: unknown): ErrorResponseBody {
+  if (caught instanceof FunctionError) {
+    return {
+      error: caught.message,
+      code: caught.code,
+      hint: caught.hint,
+      details: caught.details,
+      status: caught.status,
+    };
+  }
+
+  return {
+    error: caught instanceof Error ? caught.message : "Plan generation failed.",
+    code: "unexpected_error",
+    hint: "Bitte spaeter erneut versuchen.",
+    details: caught instanceof Error ? caught.stack : undefined,
+    status: 500,
+  };
+}
+
+function truncateDetails(value: string, maxLength = 400) {
+  const normalized = value.trim();
+  return normalized.length <= maxLength
+    ? normalized
+    : `${normalized.slice(0, maxLength)}...`;
 }
 
 const aiPlanBundleSchema = {

@@ -23,6 +23,44 @@ import type { TrainingPlanService } from "./trainingPlanService";
 import type { WeekPlanService } from "./weekPlanService";
 
 export type PlanBundleActivationMode = "draft" | "activate";
+export type PlanBundleGenerationErrorCode =
+  | "auth_required"
+  | "invalid_request"
+  | "env_not_configured"
+  | "openai_timeout"
+  | "openai_request_failed"
+  | "openai_response_invalid"
+  | "unexpected_error";
+
+export interface PlanBundleGenerationErrorPayload {
+  error: string;
+  code: PlanBundleGenerationErrorCode;
+  hint?: string;
+  details?: string;
+  status?: number;
+}
+
+export class PlanBundleGenerationError extends Error {
+  readonly code: PlanBundleGenerationErrorCode;
+  readonly hint?: string;
+  readonly technicalDetails?: string;
+  readonly status?: number;
+
+  constructor({
+    error,
+    code,
+    hint,
+    details,
+    status,
+  }: PlanBundleGenerationErrorPayload) {
+    super(error);
+    this.name = "PlanBundleGenerationError";
+    this.code = code;
+    this.hint = hint;
+    this.technicalDetails = details;
+    this.status = status;
+  }
+}
 
 export interface PlanBundleGenerationRequest {
   dateRange: DateRange;

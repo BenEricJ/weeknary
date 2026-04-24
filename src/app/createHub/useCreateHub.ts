@@ -4,9 +4,11 @@ import type {
   AuthSession,
   GeneratedPlanBundle,
   PlanBundleActivationMode,
+  PlanBundleGenerationError,
   PlanBundleGenerationRequest,
   SavedPlanBundle,
 } from "../../application";
+import { PlanBundleGenerationError as PlanBundleGenerationErrorClass } from "../../application";
 import type { Profile, UserPreferences } from "../../domain";
 import { resolveProfileRuntime } from "../profile/profileRuntime";
 import { authProvider } from "../supabaseRuntime";
@@ -37,6 +39,7 @@ export interface CreateHubState {
   bundle: GeneratedPlanBundle | null;
   savedBundle: SavedPlanBundle | null;
   error: string | null;
+  generationError: PlanBundleGenerationError | null;
   reload(): Promise<void>;
   signIn(credentials: AuthCredentials): Promise<void>;
   createAccount(credentials: AuthCredentials): Promise<void>;
@@ -57,10 +60,13 @@ export function useCreateHub(): CreateHubState {
   const [bundle, setBundle] = useState<GeneratedPlanBundle | null>(null);
   const [savedBundle, setSavedBundle] = useState<SavedPlanBundle | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [generationError, setGenerationError] =
+    useState<PlanBundleGenerationError | null>(null);
 
   const reload = useCallback(async () => {
     setStatus("loading");
     setError(null);
+    setGenerationError(null);
 
     try {
       const runtime = await resolveCreateHubRuntime();
@@ -97,6 +103,7 @@ export function useCreateHub(): CreateHubState {
     async (credentials: AuthCredentials) => {
       setStatus("loading");
       setError(null);
+      setGenerationError(null);
       const session = await authProvider.signIn(credentials);
       if (!isSignedInSession(session)) {
         setStatus("error");
@@ -112,6 +119,7 @@ export function useCreateHub(): CreateHubState {
     async (credentials: AuthCredentials) => {
       setStatus("loading");
       setError(null);
+      setGenerationError(null);
       const session = await authProvider.createAccount(credentials);
       if (!isSignedInSession(session)) {
         setStatus("error");
@@ -129,12 +137,14 @@ export function useCreateHub(): CreateHubState {
     setPreferences(null);
     setBundle(null);
     setSavedBundle(null);
+    setGenerationError(null);
     await reload();
   }, [reload]);
 
   const generate = useCallback(async (request: PlanBundleGenerationRequest) => {
     setStatus("generating");
     setError(null);
+    setGenerationError(null);
     setSavedBundle(null);
 
     try {
@@ -160,11 +170,26 @@ export function useCreateHub(): CreateHubState {
       return nextBundle;
     } catch (caught) {
       setStatus("error");
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Plan bundle generation failed.",
-      );
+      if (caught instanceof PlanBundleGenerationErrorClass) {
+        setGenerationError(caught);
+        setError(caught.message);
+      } else {
+        setGenerationError(
+          new PlanBundleGenerationErrorClass({
+            error:
+              caught instanceof Error
+                ? caught.message
+                : "Plan bundle generation failed.",
+            code: "unexpected_error",
+            hint: "Bitte spaeter erneut versuchen.",
+          }),
+        );
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "Plan bundle generation failed.",
+        );
+      }
       return null;
     }
   }, []);
@@ -178,6 +203,7 @@ export function useCreateHub(): CreateHubState {
 
       setStatus("saving");
       setError(null);
+      setGenerationError(null);
 
       try {
         const runtime = await resolveCreateHubRuntime();
@@ -217,6 +243,7 @@ export function useCreateHub(): CreateHubState {
     bundle,
     savedBundle,
     error,
+    generationError,
     reload,
     signIn,
     createAccount,

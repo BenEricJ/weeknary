@@ -81,11 +81,44 @@ assertIncludes(
   edgeFunction,
   "client.auth.getUser()",
 );
+assertIncludes(
+  "supabase/functions/generate-plan-bundle/index.ts",
+  edgeFunction,
+  'code: "env_not_configured"',
+);
+assertIncludes(
+  "supabase/functions/generate-plan-bundle/index.ts",
+  edgeFunction,
+  "function toErrorResponse",
+);
+assertIncludes(
+  "supabase/functions/generate-plan-bundle/index.ts",
+  edgeFunction,
+  "function getStatusForError",
+);
+
+const generator = read("src/infrastructure/supabase/SupabasePlanBundleGenerator.ts");
+assertIncludes(
+  "src/infrastructure/supabase/SupabasePlanBundleGenerator.ts",
+  generator,
+  "/functions/v1/generate-plan-bundle",
+);
+assertIncludes(
+  "src/infrastructure/supabase/SupabasePlanBundleGenerator.ts",
+  generator,
+  "client.auth.getSession()",
+);
+assertNotIncludes(
+  "src/infrastructure/supabase/SupabasePlanBundleGenerator.ts",
+  generator,
+  "client.functions.invoke",
+);
 
 const createHubView = read("src/app/views/CreateHubView.tsx");
 assertIncludes("src/app/views/CreateHubView.tsx", createHubView, "useCreateHub");
 assertIncludes("src/app/views/CreateHubView.tsx", createHubView, 'save("draft")');
 assertIncludes("src/app/views/CreateHubView.tsx", createHubView, 'save("activate")');
+assertIncludes("src/app/views/CreateHubView.tsx", createHubView, "Technische Details");
 
 const envExample = read(".env.example");
 for (const forbidden of [

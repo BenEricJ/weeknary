@@ -101,6 +101,22 @@ The browser never receives `OPENAI_API_KEY`; it invokes the function with the
 current Supabase session. Generated bundles can be saved as drafts or activated,
 which archives existing active plans through the domain services.
 
+If generation fails, Create Hub now shows a user-facing error plus collapsible
+technical details from the Edge Function response. The most common operational
+cause is a missing Edge Function secret such as `OPENAI_API_KEY`.
+
+Required Edge Function secrets:
+
+```bash
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.2
+PLAN_GENERATION_TIMEOUT_MS=60000
+```
+
+For local validation only, the Edge Function can be switched to mock mode with
+`WEEKNARY_PLAN_GENERATION_MOCK=true`. This is a development aid only and not a
+production fallback path.
+
 Validation:
 
 ```bash
