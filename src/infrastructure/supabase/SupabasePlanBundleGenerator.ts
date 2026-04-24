@@ -16,18 +16,56 @@ export class SupabasePlanBundleGenerator implements PlanBundleGeneratorPort {
   async generatePlanBundle(
     request: PlanBundleGenerationRequest,
   ): Promise<GeneratedPlanBundle> {
-    const session = await this.client.auth.getSession();
-    const accessToken = session.data.session?.access_token;
+    const initialToken = await this.resolveAccessToken();
 
-    if (!accessToken) {
-      throw new PlanBundleGenerationErrorClass({
-        error: "Plan bundle generation failed: authentication required.",
-        code: "auth_required",
-        hint: "Bitte erneut anmelden.",
-        status: 401,
-      });
+    try {
+      return await this.invokeFunction(request, initialToken);
+    } catch (caught) {
+      if (!isAuthRequiredError(caught)) {
+        throw caught;
+      }
+
+      const refreshedToken = await this.resolveAccessToken(true);
+      return this.invokeFunction(request, refreshedToken);
+    }
+  }
+
+  private async resolveAccessToken(forceRefresh = false) {
+    if (forceRefresh) {
+      const refreshedSession = await this.client.auth.refreshSession();
+      const refreshedToken = refreshedSession.data.session?.access_token;
+
+      if (refreshedToken) {
+        return refreshedToken;
+      }
     }
 
+    const currentSession = await this.client.auth.getSession();
+    const currentToken = currentSession.data.session?.access_token;
+
+    if (currentToken) {
+      return currentToken;
+    }
+
+    const refreshedSession = await this.client.auth.refreshSession();
+    const refreshedToken = refreshedSession.data.session?.access_token;
+
+    if (refreshedToken) {
+      return refreshedToken;
+    }
+
+    throw new PlanBundleGenerationErrorClass({
+      error: "Plan bundle generation failed: authentication required.",
+      code: "auth_required",
+      hint: "Bitte erneut anmelden.",
+      status: 401,
+    });
+  }
+
+  private async invokeFunction(
+    request: PlanBundleGenerationRequest,
+    accessToken: string,
+  ): Promise<GeneratedPlanBundle> {
     const response = await fetch(`${supabaseConfig.url}/functions/v1/generate-plan-bundle`, {
       method: "POST",
       headers: {
@@ -92,4 +130,8 @@ function isKnownErrorCode(value: unknown): value is PlanBundleGenerationErrorCod
     value === "openai_response_invalid" ||
     value === "unexpected_error"
   );
+}
+
+function isAuthRequiredError(error: unknown): error is PlanBundleGenerationError {
+  return error instanceof PlanBundleGenerationErrorClass && error.code === "auth_required";
 }
