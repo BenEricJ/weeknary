@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  Apple,
   BriefcaseBusiness,
   HandHeart,
   HeartPulse,
@@ -13,6 +14,7 @@ import {
 export type CategoryKey =
   | "arbeit"
   | "training"
+  | "nutrition"
   | "sozial"
   | "erholung"
   | "orga"
@@ -34,6 +36,7 @@ export interface EventItem {
 export type AllDayEventItem = Omit<EventItem, "start" | "end" | "subtitle">;
 
 export interface DayPlan {
+  dayKey?: string;
   dayShort: string;
   dayLabel: string;
   date: number;
@@ -78,6 +81,15 @@ export const CATEGORY_META: Record<
     surfaceClassName: "bg-[#F3F8FB]",
     borderClassName: "border-[#D9E8F1]",
     barClassName: "bg-[#5B88A5]",
+  },
+  nutrition: {
+    label: "Ernaehrung",
+    icon: Apple,
+    iconClassName: "text-[#A56A2A]",
+    badgeClassName: "bg-[#F8F1E6] text-[#A56A2A]",
+    surfaceClassName: "bg-[#FCF7F0]",
+    borderClassName: "border-[#F0E1CB]",
+    barClassName: "bg-[#A56A2A]",
   },
   sozial: {
     label: "Sozial",
@@ -626,6 +638,7 @@ export function buildEventDetail(day: DayPlan, entry: ScheduleEntry) {
 
   return {
     id: entry.id,
+    dayKey: day.dayKey ?? String(day.date),
     dayDate: day.date,
     title: entry.title,
     subtitle:

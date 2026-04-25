@@ -1,10 +1,21 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { Dumbbell, Link2, Activity, Flower, CircleDot, Zap, MapIcon } from "lucide-react";
 import { WorkoutDetailDrawer } from "../components/WorkoutDetailDrawer";
 import { AppTabHeader } from "../components/AppTabHeader";
 import { UserProfileDrawer } from "../components/UserProfileDrawer";
+import type { WeekCalendarSelectionMode } from "../components/WeekCalendar";
 import { useActiveTrainingPlan } from "../trainingPlan/useActiveTrainingPlan";
-import { TrainingPlanRuntimePanel } from "../trainingPlan/TrainingPlanRuntimePanel";
+import {
+  getDateInISOWeek,
+  getISOWeekDays,
+  getISOWeekNumber,
+  getISOWeekRange,
+  getISOWeekYear,
+  getSurroundingWeekOptions,
+  getWeekdayIndex,
+} from "../calendarWeekOptions";
+import { getDateParts, parseIsoDate, toIsoDate } from "../dateDisplay";
 
 // Deine neuen aufgeteilten Komponenten:
 import { PlanSection, WorkoutsSection, ProgressSection } from "../components/training/TrainingTabs";
@@ -56,12 +67,22 @@ const progressData: Record<string, any> = {
 
 // --- KOMPONENTE ---
 export function TrainingView() {
+  const navigate = useNavigate();
   const activeTrainingPlan = useActiveTrainingPlan();
   // -- STATES --
   const [activeTab, setActiveTab] = useState("Plan");
   const [timeRangeTab, setTimeRangeTab] = useState("4 Wochen");
   const [activeCategory, setActiveCategory] = useState("Alle");
-  const [activeDate, setActiveDate] = useState(() => activeTrainingPlan.defaultDate);
+  const [activeDate, setActiveDate] = useState(() => toIsoDate(new Date()));
+  const currentWeekNumber = useMemo(
+    () => getISOWeekNumber(new Date()),
+    [],
+  );
+  const currentWeekYear = useMemo(() => getISOWeekYear(new Date()), []);
+  const [calendarMode, setCalendarMode] =
+    useState<WeekCalendarSelectionMode>("day");
+  const [selectedWeek, setSelectedWeek] =
+    useState(currentWeekNumber);
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
@@ -75,6 +96,84 @@ export function TrainingView() {
   const currentProgress = progressData[timeRangeTab] || progressData["4 Wochen"];
   const categoriesWithActiveState = categories.map(c => ({ ...c, active: c.label === activeCategory }));
   const selectedTrainingDay = activeTrainingPlan.getRowByDate(activeDate);
+  const selectedDateParts = useMemo(() => getDateParts(activeDate), [activeDate]);
+  const selectedWeekRange = useMemo(
+    () => getISOWeekRange(currentWeekYear, selectedWeek),
+    [currentWeekYear, selectedWeek],
+  );
+  const trainingDayDates = useMemo(
+    () =>
+      activeTrainingPlan.weekDays.map((day, index) =>
+        typeof day.date === "string"
+          ? day.date
+          : toIsoDate(new Date(2026, 3, activeTrainingPlan.rows[index]?.dayDate ?? day.date)),
+      ),
+    [activeTrainingPlan.rows, activeTrainingPlan.weekDays],
+  );
+  const trainingDateSet = useMemo(
+    () => new Set(trainingDayDates),
+    [trainingDayDates],
+  );
+  const weekOptions = useMemo(
+    () =>
+      getSurroundingWeekOptions(selectedWeek).map((week) => {
+        const range = getISOWeekRange(currentWeekYear, week.weekNumber);
+        return {
+          ...week,
+          hasData: Array.from(trainingDateSet).some(
+            (date) => date >= range.startDate && date <= range.endDate,
+          ),
+        };
+      }),
+    [currentWeekYear, selectedWeek, trainingDateSet],
+  );
+  const calendarWeekDays = useMemo(
+    () =>
+      getISOWeekDays(currentWeekYear, selectedWeek).map((day) => ({
+        ...day,
+        hasData: trainingDateSet.has(day.date),
+      })),
+    [currentWeekYear, selectedWeek, trainingDateSet],
+  );
+  const hasSelectedDayData = useMemo(
+    () => trainingDateSet.has(activeDate),
+    [activeDate, trainingDateSet],
+  );
+  const hasSelectedWeekData = useMemo(
+    () =>
+      Array.from(trainingDateSet).some(
+        (date) =>
+          date >= selectedWeekRange.startDate &&
+          date <= selectedWeekRange.endDate,
+      ),
+    [selectedWeekRange.endDate, selectedWeekRange.startDate, trainingDateSet],
+  );
+  const currentDate = useMemo(() => {
+    const today = toIsoDate(new Date());
+    return calendarWeekDays.some((day) => day.date === today)
+      ? today
+      : undefined;
+  }, [calendarWeekDays]);
+
+  const handleWeekChange = (weekNumber: number) => {
+    const weekdayIndex = getWeekdayIndex(parseIsoDate(activeDate));
+    setSelectedWeek(weekNumber);
+    setActiveDate(
+      getDateInISOWeek(currentWeekYear, weekNumber, weekdayIndex),
+    );
+  };
+
+  const createPlanForSelection = () => {
+    const range =
+      calendarMode === "week"
+        ? selectedWeekRange
+        : { startDate: activeDate, endDate: activeDate };
+    navigate(`/app/create?startDate=${range.startDate}&endDate=${range.endDate}`);
+  };
+
+  const goToPlanningProfile = () => {
+    navigate("/app/profile?tab=planning");
+  };
 
   return (
     <div className="h-full w-full bg-[#FAF9F6] flex flex-col relative overflow-hidden">
@@ -88,7 +187,9 @@ export function TrainingView() {
             {selectedTrainingDay.dayLabel}, {selectedTrainingDay.dayDate}.{" "}
             {selectedTrainingDay.monthLabel}
             {" · "}
-            {selectedTrainingDay.workoutIds.length} Einheiten geplant
+            {hasSelectedDayData
+              ? `${selectedTrainingDay.workoutIds.length} Einheiten geplant`
+              : "keine Daten"}
           </>
         }
         onProfileClick={() => setIsProfileOpen(true)}
@@ -96,22 +197,6 @@ export function TrainingView() {
 
       {/* CONTENT AREA */}
       <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-[112px] pb-[96px] flex flex-col">
-        <div className="mb-5">
-          <TrainingPlanRuntimePanel
-            status={activeTrainingPlan.status}
-            runtimeStatus={activeTrainingPlan.runtimeStatus}
-            error={activeTrainingPlan.error}
-            userEmail={activeTrainingPlan.userEmail}
-            isRemoteConfigured={activeTrainingPlan.isRemoteConfigured}
-            onReload={() => void activeTrainingPlan.reload()}
-            onSignIn={activeTrainingPlan.signIn}
-            onCreateAccount={activeTrainingPlan.createAccount}
-            onSignOut={activeTrainingPlan.signOut}
-            onSaveRemoteDemoPlan={activeTrainingPlan.saveRemoteDemoPlan}
-            onArchiveActivePlan={activeTrainingPlan.archiveActivePlan}
-          />
-        </div>
-
         {/* MAIN TABS NAVIGATION */}
         <div className="w-full bg-[#EBEAE4] p-1 rounded-xl flex shrink-0 mb-5">
           {["Plan", "Workouts", "Fortschritt"].map(tab => (
@@ -130,7 +215,12 @@ export function TrainingView() {
         </div>
 
         {/* TAB INHALTE */}
-        {activeTab === "Plan" && <PlanSection setSelectedWorkout={setSelectedWorkout} />}
+        {activeTab === "Plan" && (
+          <PlanSection
+            rows={activeTrainingPlan.rows}
+            setSelectedWorkout={setSelectedWorkout}
+          />
+        )}
         
         {activeTab === "Workouts" && (
           <WorkoutsSection 
@@ -138,8 +228,23 @@ export function TrainingView() {
             activeCategory={activeCategory}
             setActiveCategory={setActiveCategory}
             activeDate={activeDate}
+            currentDate={currentDate}
             setActiveDate={setActiveDate}
             setSelectedWorkout={setSelectedWorkout}
+            rows={activeTrainingPlan.rows}
+            weekDays={calendarWeekDays}
+            weeks={weekOptions}
+            activeWeek={selectedWeek}
+            currentWeek={currentWeekNumber}
+            setActiveWeek={handleWeekChange}
+            calendarMode={calendarMode}
+            setCalendarMode={setCalendarMode}
+            hasSelectedDayData={hasSelectedDayData}
+            hasSelectedWeekData={hasSelectedWeekData}
+            selectedWeek={selectedWeek}
+            selectedDateLabel={`${selectedDateParts.dayLabel}, ${selectedDateParts.date}. ${selectedDateParts.monthLabel}`}
+            onCreatePlan={createPlanForSelection}
+            onManualAdd={goToPlanningProfile}
           />
         )}
         

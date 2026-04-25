@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AuthCredentials, AuthSession } from "../../application";
 import type { TrainingPlan } from "../../domain";
 import {
@@ -10,6 +10,7 @@ import {
 import {
   legacyTrainingPlanToDomain,
 } from "./legacyTrainingPlanMapper";
+import { trainingPlanToDisplay } from "./trainingPlanDisplayAdapter";
 import { trainingPlanRuntime } from "./trainingPlanRuntime";
 import { authProvider } from "../supabaseRuntime";
 import { resolveTrainingPlanRuntime } from "./trainingPlanRuntime";
@@ -136,15 +137,31 @@ export function useActiveTrainingPlan() {
     await reload();
   }, [plan, reload, userId]);
 
+  const displayPlan = useMemo(
+    () =>
+      plan
+        ? trainingPlanToDisplay(plan)
+        : {
+            rows: TRAINING_PLAN_ROWS,
+            weekDays: TRAINING_WEEK_DAYS,
+            defaultDate: getDefaultTrainingDate(),
+          },
+    [plan],
+  );
+
   return {
     status,
     plan,
     userId,
     userEmail,
-    rows: TRAINING_PLAN_ROWS,
-    weekDays: TRAINING_WEEK_DAYS,
-    defaultDate: getDefaultTrainingDate(),
-    getRowByDate: getTrainingPlanRowByDate,
+    rows: displayPlan.rows,
+    weekDays: displayPlan.weekDays,
+    defaultDate: displayPlan.defaultDate,
+    getRowByDate: (date: number | string) =>
+      displayPlan.rows.find((_row, index) => displayPlan.weekDays[index]?.date === date) ??
+      (typeof date === "number"
+        ? getTrainingPlanRowByDate(date)
+        : displayPlan.rows[0] ?? TRAINING_PLAN_ROWS[0]),
     error,
     reload,
     runtimeStatus,

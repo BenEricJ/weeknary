@@ -19,6 +19,8 @@ import {
 import { Textarea } from "./ui/textarea";
 
 export interface EventEditSession {
+  mode?: "create" | "edit";
+  dayKey: string;
   dayDate: number;
   dayLabel: string;
   date: number;
@@ -100,6 +102,7 @@ export function EventEditDrawer({
   if (!session) {
     return null;
   }
+  const isCreateMode = session.mode === "create";
 
   const handleSave = () => {
     if (!title.trim() || !isTimeRangeValid) {
@@ -131,7 +134,9 @@ export function EventEditDrawer({
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 bg-black/40 z-50" />
         <Drawer.Content className="bg-[#F5F4EF] flex flex-col rounded-t-[24px] h-[95vh] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-[390px] mx-auto overflow-hidden">
-          <Drawer.Title className="sr-only">Termin bearbeiten</Drawer.Title>
+          <Drawer.Title className="sr-only">
+            {isCreateMode ? "Termin erstellen" : "Termin bearbeiten"}
+          </Drawer.Title>
           <Drawer.Description className="sr-only">
             Bearbeite Titel, Beschreibung, Kategorie und Zeitfenster des ausgewählten Termins.
           </Drawer.Description>
@@ -143,7 +148,7 @@ export function EventEditDrawer({
               <ChevronLeft size={24} />
             </button>
             <h2 className="text-[16px] font-bold text-gray-900">
-              Termin bearbeiten
+              {isCreateMode ? "Termin erstellen" : "Termin bearbeiten"}
             </h2>
             <div className="flex items-center gap-4 text-gray-900 mr-1">
               <Share size={20} strokeWidth={2} />
@@ -158,7 +163,7 @@ export function EventEditDrawer({
                 <div className="absolute bottom-8 -left-8 w-28 h-28 rounded-full bg-white/30 blur-2xl" />
                 <div className="absolute top-4 left-4 flex gap-2">
                   <span className="bg-white/70 text-[#4A634A] text-[10px] font-bold px-2 py-1 rounded-[6px] backdrop-blur-sm uppercase tracking-wider">
-                    Bearbeiten
+                    {isCreateMode ? "Neu" : "Bearbeiten"}
                   </span>
                 </div>
                 <div className="absolute bottom-[44px] left-4 right-4">

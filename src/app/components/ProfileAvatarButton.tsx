@@ -1,4 +1,4 @@
-import React from "react";
+import { useProfileSettings } from "../profile/useProfileSettings";
 
 interface ProfileAvatarButtonProps {
   onClick: () => void;
@@ -9,18 +9,25 @@ export function ProfileAvatarButton({
   onClick,
   className = "",
 }: ProfileAvatarButtonProps) {
+  const settings = useProfileSettings();
+  const displayName = settings.profile?.displayName ?? "Profil";
+
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label="Profil oeffnen"
-      className={`w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 active:scale-95 transition-transform ${className}`}
+      className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#78916F] text-[15px] font-bold text-white shadow-[0_0_0_8px_rgba(94,122,94,0.10)] transition-transform active:scale-95 ${className}`}
     >
-      <img
-        src="https://images.unsplash.com/photo-1762708590808-c453c0e4fb0f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMG1hbiUyMHBvcnRyYWl0JTIwc21pbGluZyUyMGNhc3VhbHxlbnwxfHx8fDE3NzUyNjkzMzl8MA&ixlib=rb-4.1.0&q=80&w=1080"
-        alt="Profile"
-        className="w-full h-full object-cover"
-      />
+      {settings.profile?.avatarUrl ? (
+        <img
+          src={settings.profile.avatarUrl}
+          alt={displayName}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        displayName.slice(0, 1).toUpperCase()
+      )}
     </button>
   );
 }

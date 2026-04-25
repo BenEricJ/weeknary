@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Check, ChevronLeft, Loader2, Plus, Save, Settings, Trash2 } from "lucide-react";
 import type {
   KitchenAppliance,
@@ -19,6 +19,10 @@ import { useWeekPlanOrchestration } from "../planning/useWeekPlanOrchestration";
 import { useProfileSettings } from "../profile/useProfileSettings";
 import { useActiveWeekPlan } from "../weekPlan/useActiveWeekPlan";
 import { WeekPlanRuntimePanel } from "../weekPlan/WeekPlanRuntimePanel";
+import { useActiveMealPlan } from "../mealPlan/useActiveMealPlan";
+import { MealPlanRuntimePanel } from "../mealPlan/MealPlanRuntimePanel";
+import { useActiveTrainingPlan } from "../trainingPlan/useActiveTrainingPlan";
+import { TrainingPlanRuntimePanel } from "../trainingPlan/TrainingPlanRuntimePanel";
 
 type ProfileTab = "profile" | "nutrition" | "training" | "planning" | "expert";
 
@@ -65,17 +69,35 @@ const timeBlockCategories: TimeBlockCategory[] = [
 ];
 
 const levelOptions = ["low", "medium", "high"];
+const profileTabs: ProfileTab[] = ["profile", "nutrition", "training", "planning", "expert"];
+
+function parseProfileTab(value: string | null): ProfileTab | null {
+  return value && profileTabs.includes(value as ProfileTab) ? (value as ProfileTab) : null;
+}
 
 export function ProfileView() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const settings = useProfileSettings();
   const activeWeekPlan = useActiveWeekPlan();
+  const activeMealPlan = useActiveMealPlan();
+  const activeTrainingPlan = useActiveTrainingPlan();
   const planningContext = usePlanningContext();
   const orchestration = useWeekPlanOrchestration();
-  const [activeTab, setActiveTab] = useState<ProfileTab>("profile");
+  const [activeTab, setActiveTab] = useState<ProfileTab>(
+    () => parseProfileTab(searchParams.get("tab")) ?? "profile",
+  );
   const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
   const [preferencesDraft, setPreferencesDraft] = useState<UserPreferences | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const tab = parseProfileTab(searchParams.get("tab"));
+
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [activeTab, searchParams]);
 
   useEffect(() => {
     if (settings.profile) {
@@ -106,6 +128,13 @@ export function ProfileView() {
     if (savedProfile && savedPreferences) {
       setMessage("Profil und Defaults gespeichert.");
     }
+  };
+
+  const selectTab = (tab: ProfileTab) => {
+    setActiveTab(tab);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", tab);
+    setSearchParams(nextParams, { replace: true });
   };
 
   return (
@@ -142,19 +171,19 @@ export function ProfileView() {
         </div>
 
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          <TabButton active={activeTab === "profile"} onClick={() => setActiveTab("profile")}>
+          <TabButton active={activeTab === "profile"} onClick={() => selectTab("profile")}>
             Profil
           </TabButton>
-          <TabButton active={activeTab === "nutrition"} onClick={() => setActiveTab("nutrition")}>
+          <TabButton active={activeTab === "nutrition"} onClick={() => selectTab("nutrition")}>
             Ernaehrung
           </TabButton>
-          <TabButton active={activeTab === "training"} onClick={() => setActiveTab("training")}>
+          <TabButton active={activeTab === "training"} onClick={() => selectTab("training")}>
             Training
           </TabButton>
-          <TabButton active={activeTab === "planning"} onClick={() => setActiveTab("planning")}>
+          <TabButton active={activeTab === "planning"} onClick={() => selectTab("planning")}>
             Planung
           </TabButton>
-          <TabButton active={activeTab === "expert"} onClick={() => setActiveTab("expert")}>
+          <TabButton active={activeTab === "expert"} onClick={() => selectTab("expert")}>
             Expert
           </TabButton>
         </div>
@@ -189,6 +218,8 @@ export function ProfileView() {
                 profileRuntimeStatus={settings.runtimeStatus}
                 profileError={settings.error}
                 activeWeekPlan={activeWeekPlan}
+                activeMealPlan={activeMealPlan}
+                activeTrainingPlan={activeTrainingPlan}
                 planningContext={planningContext}
                 orchestration={orchestration}
               />
@@ -1827,6 +1858,8 @@ function ProfileExpertPanel({
   profileRuntimeStatus,
   profileError,
   activeWeekPlan,
+  activeMealPlan,
+  activeTrainingPlan,
   planningContext,
   orchestration,
 }: {
@@ -1834,6 +1867,8 @@ function ProfileExpertPanel({
   profileRuntimeStatus: ReturnType<typeof useProfileSettings>["runtimeStatus"];
   profileError: string | null;
   activeWeekPlan: ReturnType<typeof useActiveWeekPlan>;
+  activeMealPlan: ReturnType<typeof useActiveMealPlan>;
+  activeTrainingPlan: ReturnType<typeof useActiveTrainingPlan>;
   planningContext: ReturnType<typeof usePlanningContext>;
   orchestration: ReturnType<typeof useWeekPlanOrchestration>;
 }) {
@@ -1844,6 +1879,8 @@ function ProfileExpertPanel({
           items={[
             ["Profil", `${profileRuntimeStatus} · ${profileStatus}`],
             ["Wochenplan", `${activeWeekPlan.runtimeStatus} · ${activeWeekPlan.status}`],
+            ["MealPlan", `${activeMealPlan.runtimeStatus} · ${activeMealPlan.status}`],
+            ["TrainingPlan", `${activeTrainingPlan.runtimeStatus} · ${activeTrainingPlan.status}`],
             ["Planung", `${planningContext.runtimeStatus} · ${planningContext.status}`],
           ]}
         />
@@ -1869,6 +1906,38 @@ function ProfileExpertPanel({
           onSaveRemoteDemoPlan={activeWeekPlan.saveRemoteDemoPlan}
           onArchiveActivePlan={activeWeekPlan.archiveActivePlan}
           onRetryRemoteSave={activeWeekPlan.retryRemoteSave}
+        />
+      </AdvancedSection>
+
+      <AdvancedSection title="MealPlan-Speicher">
+        <MealPlanRuntimePanel
+          status={activeMealPlan.status}
+          runtimeStatus={activeMealPlan.runtimeStatus}
+          error={activeMealPlan.error}
+          userEmail={activeMealPlan.userEmail}
+          isRemoteConfigured={activeMealPlan.isRemoteConfigured}
+          onReload={() => void activeMealPlan.reload()}
+          onSignIn={activeMealPlan.signIn}
+          onCreateAccount={activeMealPlan.createAccount}
+          onSignOut={activeMealPlan.signOut}
+          onSaveRemoteDemoPlan={activeMealPlan.saveRemoteDemoPlan}
+          onArchiveActivePlan={activeMealPlan.archiveActivePlan}
+        />
+      </AdvancedSection>
+
+      <AdvancedSection title="TrainingPlan-Speicher">
+        <TrainingPlanRuntimePanel
+          status={activeTrainingPlan.status}
+          runtimeStatus={activeTrainingPlan.runtimeStatus}
+          error={activeTrainingPlan.error}
+          userEmail={activeTrainingPlan.userEmail}
+          isRemoteConfigured={activeTrainingPlan.isRemoteConfigured}
+          onReload={() => void activeTrainingPlan.reload()}
+          onSignIn={activeTrainingPlan.signIn}
+          onCreateAccount={activeTrainingPlan.createAccount}
+          onSignOut={activeTrainingPlan.signOut}
+          onSaveRemoteDemoPlan={activeTrainingPlan.saveRemoteDemoPlan}
+          onArchiveActivePlan={activeTrainingPlan.archiveActivePlan}
         />
       </AdvancedSection>
 

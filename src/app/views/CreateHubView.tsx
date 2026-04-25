@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   CalendarDays,
+  Check,
   CheckCircle2,
   ChevronLeft,
   Dumbbell,
@@ -53,13 +54,35 @@ const defaultOutput: NonNullable<PlanBundleGenerationRequest["output"]> = {
   includeConstraintWarnings: true,
 };
 
+const generationSteps: Array<{ icon: LucideIcon; label: string }> = [
+  { icon: UtensilsCrossed, label: "MealPlan wird erstellt..." },
+  { icon: Dumbbell, label: "TrainingPlan wird angepasst..." },
+  { icon: Target, label: "Wochenfokus wird formuliert..." },
+];
+
 export function CreateHubView() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const createHub = useCreateHub();
   const defaultRange = useMemo(() => getNextWeekRange(), []);
+  const initialRange = useMemo(() => {
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+
+    return {
+      startDate: isIsoDateParam(startDateParam)
+        ? startDateParam
+        : defaultRange.startDate,
+      endDate: isIsoDateParam(endDateParam)
+        ? endDateParam
+        : isIsoDateParam(startDateParam)
+          ? startDateParam
+          : defaultRange.endDate,
+    };
+  }, [defaultRange.endDate, defaultRange.startDate, searchParams]);
   const [step, setStep] = useState<WizardStep>("setup");
-  const [startDate, setStartDate] = useState(defaultRange.startDate);
-  const [endDate, setEndDate] = useState(defaultRange.endDate);
+  const [startDate, setStartDate] = useState(initialRange.startDate);
+  const [endDate, setEndDate] = useState(initialRange.endDate);
   const [goalsText, setGoalsText] = useState(defaultGoals.join("\n"));
   const [constraintsText, setConstraintsText] = useState(defaultConstraints.join("\n"));
   const [userNotes, setUserNotes] = useState(
@@ -92,6 +115,7 @@ export function CreateHubView() {
     useState<PlanBundleGenerationRequest["state"]>({});
   const [output, setOutput] =
     useState<NonNullable<PlanBundleGenerationRequest["output"]>>(defaultOutput);
+  const [activeGenerationStep, setActiveGenerationStep] = useState(0);
 
   useEffect(() => {
     if (didApplyProfileDefaults || !createHub.preferences) {
@@ -104,6 +128,23 @@ export function CreateHubView() {
     setMainFocus(createHub.preferences.week.focusAreas[0] ?? "");
     setDidApplyProfileDefaults(true);
   }, [createHub.preferences, createHub.profile, didApplyProfileDefaults]);
+
+  useEffect(() => {
+    if (createHub.status !== "generating") {
+      setActiveGenerationStep(0);
+      return;
+    }
+
+    setActiveGenerationStep(0);
+    const timers = [
+      window.setTimeout(() => setActiveGenerationStep(1), 1200),
+      window.setTimeout(() => setActiveGenerationStep(2), 2400),
+    ];
+
+    return () => {
+      timers.forEach(window.clearTimeout);
+    };
+  }, [createHub.status]);
 
   const request = useMemo<PlanBundleGenerationRequest>(
     () => {
@@ -202,6 +243,10 @@ export function CreateHubView() {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#FAF9F6]">
+      {createHub.status === "generating" ? (
+        <GenerationOverlay activeStep={activeGenerationStep} />
+      ) : null}
+
       <header className="sticky top-0 z-10 border-b border-gray-100 bg-[#FAF9F6]/95 px-5 pb-4 pt-8 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -236,6 +281,7 @@ export function CreateHubView() {
 
           {step === "setup" ? (
             <SetupStep
+              createHub={createHub}
               startDate={startDate}
               endDate={endDate}
               startingPoint={startingPoint}
@@ -290,9 +336,25 @@ export function CreateHubView() {
 
       <footer className="absolute inset-x-0 bottom-[80px] z-20 bg-gradient-to-t from-[#FAF9F6] via-[#FAF9F6] to-transparent px-6 pb-4 pt-6">
         {step === "setup" ? (
-          <PrimaryButton onClick={() => setStep("context")} disabled={startDate > endDate}>
-            Weiter
-          </PrimaryButton>
+          <div className="grid gap-2">
+            <PrimaryButton onClick={() => void generate()} disabled={!canGenerate}>
+              {createHub.status === "generating" ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <>
+                  Plan generieren
+                  <Sparkles size={18} />
+                </>
+              )}
+            </PrimaryButton>
+            <button
+              type="button"
+              onClick={() => setStep("context")}
+              className="h-11 rounded-[14px] border border-[#D9D6CC] bg-white text-[12px] font-bold text-gray-800 shadow-sm"
+            >
+              Kontext anpassen
+            </button>
+          </div>
         ) : null}
 
         {step === "context" ? (
@@ -333,6 +395,60 @@ export function CreateHubView() {
           </div>
         ) : null}
       </footer>
+    </div>
+  );
+}
+
+function isIsoDateParam(value: string | null): value is string {
+  return !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function GenerationOverlay({ activeStep }: { activeStep: number }) {
+  return (
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-[#FAF9F6]/95 px-8 backdrop-blur-md">
+      <Loader2 size={36} className="animate-spin text-[#5E7A5E]" />
+      <div className="text-center">
+        <p className="text-[15px] font-bold text-gray-900">Wird erstellt...</p>
+        <p className="mt-1 text-[12px] text-gray-500">
+          {generationSteps[activeStep]?.label ?? generationSteps[0].label}
+        </p>
+      </div>
+      <div className="mt-2 grid w-full gap-2">
+        {generationSteps.map(({ icon: Icon, label }, index) => (
+          <div
+            key={label}
+            className={`flex items-center gap-3 transition-opacity ${
+              index <= activeStep ? "opacity-100" : "opacity-40"
+            }`}
+          >
+            <div
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${
+                index < activeStep
+                  ? "bg-[#E4E9E4]"
+                  : index === activeStep
+                    ? "bg-[#5E7A5E]"
+                    : "bg-gray-100"
+              }`}
+            >
+              {index < activeStep ? (
+                <Check size={14} className="text-[#4A634A]" />
+              ) : (
+                <Icon
+                  size={14}
+                  className={index === activeStep ? "text-white" : "text-gray-400"}
+                />
+              )}
+            </div>
+            <span
+              className={`text-[12px] font-bold ${
+                index === activeStep ? "text-gray-900" : "text-gray-500"
+              }`}
+            >
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -446,6 +562,7 @@ function RuntimeCard({ createHub }: { createHub: ReturnType<typeof useCreateHub>
 }
 
 function SetupStep({
+  createHub,
   startDate,
   endDate,
   startingPoint,
@@ -453,6 +570,7 @@ function SetupStep({
   onEndDateChange,
   onStartingPointChange,
 }: {
+  createHub: ReturnType<typeof useCreateHub>;
   startDate: string;
   endDate: string;
   startingPoint: PlanBundleGenerationRequest["startingPoint"];
@@ -462,31 +580,90 @@ function SetupStep({
     value: PlanBundleGenerationRequest["startingPoint"],
   ) => void;
 }) {
+  const preferences = createHub.preferences;
+  const mealSummary = preferences
+    ? `${formatOptionLabel(preferences.nutrition.dietType)} · ${preferences.nutrition.dailyNutritionTarget.kcal ?? "offenes"} kcal Ziel`
+    : "Profil-Defaults werden geladen";
+  const trainingMinutes = preferences?.training.structure?.weeklyVolumeTargetMinutes;
+  const trainingSummary = preferences
+    ? `${preferences.training.sessionsPerWeek} Einheiten${
+        trainingMinutes ? ` · ${Math.round(trainingMinutes / 60)}h Volumen` : ""
+      }`
+    : "Training wird aus Defaults abgeleitet";
+  const focusSummary = preferences?.week.focusAreas[0] ?? "Ein grosses Thema pro Woche";
+
   return (
     <section className="space-y-4">
+      <section className="flex gap-3 rounded-[20px] border border-[#E6EBE6] bg-[#F2F4F2] p-4 shadow-sm">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white">
+          <Sparkles size={22} className="text-[#4A634A]" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#4A634A]">
+            Create Hub
+          </p>
+          <h2 className="mt-1 text-lg font-bold leading-tight text-gray-900">
+            Deinen Plan fuer die Woche
+          </h2>
+          <p className="mt-1 text-[12px] leading-snug text-gray-600">
+            Wir generieren MealPlan, TrainingPlan und Wochenfokus auf deinen
+            Rhythmus abgestimmt.
+          </p>
+        </div>
+      </section>
+
       <div>
-        <h2 className="text-xl font-bold text-gray-900">Was wird erstellt?</h2>
-        <p className="mt-1 text-[13px] leading-snug text-gray-500">
-          Ein zusammenhaengender MealPlan, TrainingPlan und WeekPlan.
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
+          Bausteine
         </p>
+        <div className="grid gap-2.5">
+          <HubCard
+            icon={UtensilsCrossed}
+            title="MealPlan"
+            subtitle={mealSummary}
+            badge="Angepasst"
+            active
+          />
+          <HubCard
+            icon={Dumbbell}
+            title="TrainingPlan"
+            subtitle={trainingSummary}
+            badge="Im Rhythmus"
+          />
+          <HubCard
+            icon={Target}
+            title="Wochenfokus"
+            subtitle={focusSummary}
+            badge="Naechste Woche"
+          />
+        </div>
       </div>
 
-      <div className="grid gap-3">
-        <HubCard
-          icon={Sparkles}
-          title="Combined Week Plan"
-          subtitle="Meals, Training und Wochenstruktur als Bundle"
-          active
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <DateInput label="Start" value={startDate} onChange={onStartDateChange} />
-          <DateInput label="Ende" value={endDate} onChange={onEndDateChange} />
+      <section className="rounded-[18px] border border-[#E8E6DD] bg-[#F4F2EC] p-3.5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <CalendarDays size={18} className="text-[#4A634A]" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-bold text-gray-900">
+              {createHub.bundle ? "Zuletzt generiert" : "Planzeitraum"}
+            </p>
+            <p className="mt-0.5 text-[11px] text-gray-500">
+              {formatDateRange(startDate, endDate)}
+            </p>
+          </div>
+          <span className="rounded-full bg-[#E4E9E4] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#4A634A]">
+            {createHub.bundle ? "Preview" : "Bereit"}
+          </span>
         </div>
-        <SegmentedStartingPoint
-          value={startingPoint}
-          onChange={onStartingPointChange}
-        />
+      </section>
+
+      <div className="grid grid-cols-2 gap-3">
+        <DateInput label="Start" value={startDate} onChange={onStartDateChange} />
+        <DateInput label="Ende" value={endDate} onChange={onEndDateChange} />
       </div>
+      <SegmentedStartingPoint
+        value={startingPoint}
+        onChange={onStartingPointChange}
+      />
     </section>
   );
 }
@@ -834,11 +1011,13 @@ function HubCard({
   icon: Icon,
   title,
   subtitle,
+  badge,
   active,
 }: {
   icon: LucideIcon;
   title: string;
   subtitle: string;
+  badge?: string;
   active?: boolean;
 }) {
   return (
@@ -850,10 +1029,15 @@ function HubCard({
       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white">
         <Icon size={20} className="text-[#5E7A5E]" />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-[14px] font-bold text-gray-900">{title}</p>
         <p className="mt-0.5 text-[11px] leading-snug text-gray-500">{subtitle}</p>
       </div>
+      {badge ? (
+        <span className="shrink-0 rounded-full bg-[#E4E9E4] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#4A634A]">
+          {badge}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -1394,4 +1578,29 @@ function buildStructuredConstraints({
 
 function emptyToUndefined(value: string) {
   return value.trim() ? value.trim() : undefined;
+}
+
+function formatDateRange(startDate: string, endDate: string) {
+  return `${formatInputDate(startDate)} bis ${formatInputDate(endDate)}`;
+}
+
+function formatInputDate(value: string) {
+  const [year, month, day] = value.split("-");
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return `${day}.${month}.${year}`;
+}
+
+function formatOptionLabel(value: string) {
+  const labels: Record<string, string> = {
+    omnivore: "Omnivor",
+    vegetarian: "Vegetarisch",
+    vegan: "Vegan",
+    pescetarian: "Pescetarisch",
+  };
+
+  return labels[value] ?? value;
 }

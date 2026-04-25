@@ -271,7 +271,7 @@ async function generateAiBundle(
         code: "openai_request_failed",
         status: 502,
         hint: "Bitte spaeter erneut versuchen.",
-        details: `OpenAI status ${response.status}: ${truncateDetails(details)}`,
+        details: summarizeOpenAiError(response.status, details),
       });
     }
 
@@ -789,6 +789,14 @@ function truncateDetails(value: string, maxLength = 400) {
   return normalized.length <= maxLength
     ? normalized
     : `${normalized.slice(0, maxLength)}...`;
+}
+
+function summarizeOpenAiError(status: number, details: string) {
+  if (status === 401) {
+    return "OpenAI rejected the configured API key.";
+  }
+
+  return `OpenAI status ${status}: ${truncateDetails(details)}`;
 }
 
 const aiPlanBundleSchema = {

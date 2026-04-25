@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AuthCredentials, AuthSession } from "../../application";
 import type { MealPlan } from "../../domain";
 import {
@@ -14,6 +14,7 @@ import {
 import {
   legacyNutritionPlanToDomain,
 } from "./legacyNutritionPlanMapper";
+import { mealPlanToNutritionPlan } from "./mealPlanDisplayAdapter";
 import { mealPlanRuntime } from "./mealPlanRuntime";
 import { authProvider } from "../supabaseRuntime";
 import { resolveMealPlanRuntime } from "./mealPlanRuntime";
@@ -137,22 +138,27 @@ export function useActiveMealPlan() {
     await reload();
   }, [plan, reload, userId]);
 
+  const displayPlan = useMemo(
+    () => (plan ? mealPlanToNutritionPlan(plan) : NUTRITION_PLAN),
+    [plan],
+  );
+
   return {
     status,
     plan,
     userId,
     userEmail,
-    legacyPlan: NUTRITION_PLAN,
-    weekDays: getWeekDays(NUTRITION_PLAN),
-    defaultDate: getTodayPlanDate(NUTRITION_PLAN),
-    getDayByDate: (date: number) => getDayByDate(NUTRITION_PLAN, date),
-    getMealById: (mealId?: string) => getMealById(NUTRITION_PLAN, mealId),
-    getPlannedMacrosForDay: (date: number) =>
-      getPlannedMacrosForDay(NUTRITION_PLAN, getDayByDate(NUTRITION_PLAN, date)),
-    getSelectedDayPrepNotes: (date: number) =>
-      getSelectedDayPrepNotes(NUTRITION_PLAN, getDayByDate(NUTRITION_PLAN, date)),
-    getExternalMealCount: (date: number) =>
-      getExternalMealCount(getDayByDate(NUTRITION_PLAN, date)),
+    legacyPlan: displayPlan,
+    weekDays: getWeekDays(displayPlan),
+    defaultDate: getTodayPlanDate(displayPlan),
+    getDayByDate: (date: number | string) => getDayByDate(displayPlan, date),
+    getMealById: (mealId?: string) => getMealById(displayPlan, mealId),
+    getPlannedMacrosForDay: (date: number | string) =>
+      getPlannedMacrosForDay(displayPlan, getDayByDate(displayPlan, date)),
+    getSelectedDayPrepNotes: (date: number | string) =>
+      getSelectedDayPrepNotes(displayPlan, getDayByDate(displayPlan, date)),
+    getExternalMealCount: (date: number | string) =>
+      getExternalMealCount(getDayByDate(displayPlan, date)),
     error,
     reload,
     runtimeStatus,

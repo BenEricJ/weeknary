@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { CalendarDays, ChevronRight, Pencil, Target, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import {
@@ -15,7 +16,27 @@ import {
 import { WorkoutDetailDrawer } from "../components/WorkoutDetailDrawer";
 import { AppTabHeader } from "../components/AppTabHeader";
 import { UserProfileDrawer } from "../components/UserProfileDrawer";
-import { WeekCalendar } from "../components/WeekCalendar";
+import { CalendarEmptyState } from "../components/CalendarEmptyState";
+import {
+  WeekCalendar,
+  type WeekCalendarSelectionMode,
+} from "../components/WeekCalendar";
+import { useActiveWeekPlan } from "../weekPlan/useActiveWeekPlan";
+import { weekPlanToDisplayDays } from "../weekPlan/weekPlanDisplayAdapter";
+import { parseIsoDate, toIsoDate } from "../dateDisplay";
+import {
+  getDateInISOWeek,
+  getISOWeekDays,
+  getISOWeekNumber,
+  getISOWeekRange,
+  getISOWeekYear,
+  getSurroundingWeekOptions,
+  getWeekdayIndex,
+} from "../calendarWeekOptions";
+import {
+  createEmptyDisplayDay,
+  getDayKey,
+} from "../weekPlan/displayDayFactory";
 import { DayScheduleSection } from "../components/schedule/DayScheduleSection";
 import {
   CATEGORY_META,
@@ -132,10 +153,21 @@ function getFeaturedEvent(day: DayPlan, now: Date) {
 }
 
 export function WeekView() {
-  const [weekPlan, setWeekPlan] = useState(() => WEEK_PLAN);
+  const navigate = useNavigate();
+  const activeWeekPlan = useActiveWeekPlan();
+  const sourceWeekPlan = useMemo(
+    () =>
+      activeWeekPlan.plan
+        ? weekPlanToDisplayDays(activeWeekPlan.plan)
+        : WEEK_PLAN.map((day) => ({
+            ...day,
+            dayKey: toIsoDate(getDayDate(day)),
+          })),
+    [activeWeekPlan.plan],
+  );
+  const [weekPlan, setWeekPlan] = useState(() => sourceWeekPlan);
   const [selectedDate, setSelectedDate] = useState(() => {
-    const todayPlan = WEEK_PLAN.find((day) => isSameDay(getDayDate(day), new Date()));
-    return todayPlan?.date ?? WEEK_PLAN[0].date;
+    return toIsoDate(new Date());
   });
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [selectedEventDetail, setSelectedEventDetail] =
@@ -147,10 +179,23 @@ export function WeekView() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("day");
+  const currentWeekNumber = useMemo(
+    () => getISOWeekNumber(new Date()),
+    [],
+  );
+  const currentWeekYear = useMemo(() => getISOWeekYear(new Date()), []);
+  const [calendarMode, setCalendarMode] =
+    useState<WeekCalendarSelectionMode>("day");
+  const [selectedWeek, setSelectedWeek] =
+    useState(currentWeekNumber);
   const [now, setNow] = useState(() => new Date());
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({
     s1: true,
   });
+
+  useEffect(() => {
+    setWeekPlan(sourceWeekPlan);
+  }, [sourceWeekPlan]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -162,8 +207,32 @@ export function WeekView() {
 
   const selectedDay = useMemo(
     () =>
-      weekPlan.find((day) => day.date === selectedDate) ?? weekPlan[0],
+      weekPlan.find((day) => getDayKey(day) === selectedDate) ??
+      createEmptyDisplayDay(selectedDate),
     [selectedDate, weekPlan],
+  );
+  const hasSelectedDayData = useMemo(
+    () => weekPlan.some((day) => getDayKey(day) === selectedDate),
+    [selectedDate, weekPlan],
+  );
+  const selectedWeekRange = useMemo(
+    () => getISOWeekRange(currentWeekYear, selectedWeek),
+    [currentWeekYear, selectedWeek],
+  );
+  const hasSelectedWeekData = useMemo(
+    () =>
+      weekPlan.some((day) => {
+        const dayKey = getDayKey(day);
+        return (
+          dayKey >= selectedWeekRange.startDate &&
+          dayKey <= selectedWeekRange.endDate
+        );
+      }),
+    [selectedWeekRange.endDate, selectedWeekRange.startDate, weekPlan],
+  );
+  const weekPlanDateSet = useMemo(
+    () => new Set(weekPlan.map((day) => getDayKey(day))),
+    [weekPlan],
   );
 
   const selectedDaySummary = useMemo(
@@ -190,9 +259,26 @@ export function WeekView() {
     );
   }, [completedFocusStepIds]);
 
+  const weekDays = useMemo(
+    () =>
+      getISOWeekDays(currentWeekYear, selectedWeek).map((day) => ({
+        ...day,
+        hasData: weekPlanDateSet.has(day.date),
+      })),
+    [currentWeekYear, selectedWeek, weekPlanDateSet],
+  );
+  const selectedWeekDays = useMemo(
+    () =>
+      weekDays.map(
+        (day) =>
+          weekPlan.find((entry) => getDayKey(entry) === day.date) ??
+          createEmptyDisplayDay(day.date),
+      ),
+    [weekDays, weekPlan],
+  );
   const weekSummary = useMemo(
-    () => summarizeByCategory(weekPlan.flatMap((day) => day.events)),
-    [weekPlan],
+    () => summarizeByCategory(selectedWeekDays.flatMap((day) => day.events)),
+    [selectedWeekDays],
   );
 
   const selectedDayPlannedMinutes = useMemo(
@@ -201,21 +287,32 @@ export function WeekView() {
   );
 
   const weekPlannedMinutes = useMemo(
-    () => getPlannedMinutes(weekPlan.flatMap((day) => day.events)),
-    [weekPlan],
+    () => getPlannedMinutes(selectedWeekDays.flatMap((day) => day.events)),
+    [selectedWeekDays],
   );
 
   const featuredEvent = useMemo(
     () => getFeaturedEvent(selectedDay, now),
     [selectedDay, now],
   );
-  const weekDays = useMemo(
+  const currentDate = useMemo(() => {
+    const today = toIsoDate(now);
+    return weekDays.some((day) => day.date === today)
+      ? today
+      : undefined;
+  }, [now, weekDays]);
+  const weekOptions = useMemo(
     () =>
-      weekPlan.map((day) => ({
-        day: day.dayShort,
-        date: day.date,
-      })),
-    [weekPlan],
+      getSurroundingWeekOptions(selectedWeek).map((week) => {
+        const range = getISOWeekRange(currentWeekYear, week.weekNumber);
+        return {
+          ...week,
+          hasData: Array.from(weekPlanDateSet).some(
+            (date) => date >= range.startDate && date <= range.endDate,
+          ),
+        };
+      }),
+    [currentWeekYear, selectedWeek, weekPlanDateSet],
   );
   const toggleFocusStep = (id: string) => {
     setCheckedItems((previous) => ({
@@ -242,8 +339,8 @@ export function WeekView() {
     setSelectedEventDetail(buildEventDetail(day, entry));
   };
 
-  const openEventEditor = (dayDate: number, eventId: string) => {
-    const day = weekPlan.find((entry) => entry.date === dayDate);
+  const openEventEditor = (dayKey: string, eventId: string) => {
+    const day = weekPlan.find((entry) => getDayKey(entry) === dayKey);
     const event = day?.events.find((entry) => entry.id === eventId);
 
     if (!day || !event) {
@@ -253,7 +350,8 @@ export function WeekView() {
     setOpenSwipeEventId(null);
     setSelectedEventDetail(null);
     setEditingEvent({
-      dayDate,
+      dayKey,
+      dayDate: day.date,
       dayLabel: day.dayLabel,
       date: day.date,
       monthLabel: day.monthLabel,
@@ -267,12 +365,14 @@ export function WeekView() {
     }
 
     setWeekPlan((previous) =>
-      previous.map((day) =>
-        day.date === editingEvent.dayDate
+      previous.some((day) => getDayKey(day) === editingEvent.dayKey)
+        ? previous.map((day) =>
+        getDayKey(day) === editingEvent.dayKey
           ? {
               ...day,
               events: day.events
-                .map((event) =>
+                .some((event) => event.id === draft.id)
+                ? day.events.map((event) =>
                   event.id === draft.id
                     ? {
                         ...event,
@@ -285,22 +385,53 @@ export function WeekView() {
                       }
                     : event,
                 )
+                : [
+                    ...day.events,
+                    {
+                      id: draft.id,
+                      title: draft.title,
+                      subtitle: draft.subtitle,
+                      start: draft.start,
+                      end: draft.end,
+                      category: draft.category as CategoryKey,
+                      workoutId: draft.workoutId,
+                      subtasks: draft.subtasks,
+                    },
+                  ]
                 .sort(
                   (left, right) =>
                     toMinutes(left.start) - toMinutes(right.start),
                 ),
             }
           : day,
-      ),
+      )
+        : [
+            ...previous,
+            {
+              ...createEmptyDisplayDay(editingEvent.dayKey),
+              events: [
+                {
+                  id: draft.id,
+                  title: draft.title,
+                  subtitle: draft.subtitle,
+                  start: draft.start,
+                  end: draft.end,
+                  category: draft.category as CategoryKey,
+                  workoutId: draft.workoutId,
+                  subtasks: draft.subtasks,
+                },
+              ],
+            },
+          ],
     );
 
     setEditingEvent(null);
   };
 
-  const deleteEvent = (dayDate: number, eventId: string) => {
+  const deleteEvent = (dayKey: string, eventId: string) => {
     setWeekPlan((previous) =>
       previous.map((day) =>
-        day.date === dayDate
+        getDayKey(day) === dayKey
           ? {
               ...day,
               events: day.events.filter((event) => event.id !== eventId),
@@ -344,7 +475,7 @@ export function WeekView() {
   };
 
   const openCategoryFromWeek = (category: CategoryKey) => {
-    const matchingDay = weekPlan.find(
+    const matchingDay = selectedWeekDays.find(
       (day) =>
         day.events.some((event) => event.category === category) ||
         day.allDayEvents.some(
@@ -356,7 +487,7 @@ export function WeekView() {
       return;
     }
 
-    setSelectedDate(matchingDay.date);
+    setSelectedDate(getDayKey(matchingDay));
 
     const matchingEvent = matchingDay.events.find(
       (event) => event.category === category,
@@ -384,6 +515,41 @@ export function WeekView() {
       })),
     [],
   );
+
+  const handleWeekChange = (weekNumber: number) => {
+    const weekdayIndex = getWeekdayIndex(parseIsoDate(selectedDate));
+    setSelectedWeek(weekNumber);
+    setSelectedDate(
+      getDateInISOWeek(currentWeekYear, weekNumber, weekdayIndex),
+    );
+  };
+
+  const createPlanForSelection = () => {
+    const range =
+      calendarMode === "week"
+        ? selectedWeekRange
+        : { startDate: selectedDate, endDate: selectedDate };
+    navigate(`/app/create?startDate=${range.startDate}&endDate=${range.endDate}`);
+  };
+
+  const openNewEventEditor = () => {
+    setEditingEvent({
+      mode: "create",
+      dayKey: selectedDate,
+      dayDate: selectedDay.date,
+      dayLabel: selectedDay.dayLabel,
+      date: selectedDay.date,
+      monthLabel: selectedDay.monthLabel,
+      event: {
+        id: `local-${Date.now()}`,
+        title: "",
+        subtitle: "",
+        start: "09:00",
+        end: "10:00",
+        category: "orga",
+      },
+    });
+  };
 
   return (
     <div className="relative h-full w-full bg-[#FAF9F6] flex flex-col overflow-hidden">
@@ -429,11 +595,19 @@ export function WeekView() {
           days={weekDays}
           activeDate={selectedDate}
           onDateChange={setSelectedDate}
+          currentDate={currentDate}
+          weeks={weekOptions}
+          activeWeek={selectedWeek}
+          onWeekChange={handleWeekChange}
+          currentWeek={currentWeekNumber}
+          selectionMode={calendarMode}
+          onSelectionModeChange={setCalendarMode}
           className="flex justify-between items-center bg-white rounded-[16px] p-2 shadow-sm border border-gray-100/60"
         />
       </div>
 
-      {viewMode === "day" ? (
+      {(viewMode === "week" ? hasSelectedWeekData : hasSelectedDayData) ? (
+      viewMode === "day" ? (
         <>
           {featuredEvent ? (
             <button
@@ -497,8 +671,8 @@ export function WeekView() {
             day={selectedDay}
             categoryMeta={CATEGORY_META}
             onOpen={(entry) => openScheduleEntry(selectedDay, entry as ScheduleEntry)}
-            onEdit={(eventId) => openEventEditor(selectedDay.date, eventId)}
-            onDelete={(eventId) => deleteEvent(selectedDay.date, eventId)}
+            onEdit={(eventId) => openEventEditor(getDayKey(selectedDay), eventId)}
+            onDelete={(eventId) => deleteEvent(getDayKey(selectedDay), eventId)}
             openSwipeEventId={openSwipeEventId}
             onActionsOpenChange={setOpenSwipeEventId}
           />
@@ -537,15 +711,15 @@ export function WeekView() {
               </span>
             </div>
             <div className="flex flex-col gap-2">
-              {weekPlan.map((day) => (
+              {selectedWeekDays.map((day) => (
                 <button
-                  key={day.date}
+                  key={getDayKey(day)}
                   onClick={() => {
-                    setSelectedDate(day.date);
+                    setSelectedDate(getDayKey(day));
                     setViewMode("day");
                   }}
                   className={`w-full text-left rounded-[18px] p-3.5 border shadow-sm transition-colors ${
-                    day.date === selectedDate
+                    getDayKey(day) === selectedDate
                       ? "bg-[#F2F4F2] border-[#DCE4DC]"
                       : "bg-white border-gray-100 hover:bg-gray-50"
                   }`}
@@ -617,6 +791,18 @@ export function WeekView() {
             />
           </section>
         </>
+      )
+      ) : (
+        <CalendarEmptyState
+          title={
+            viewMode === "week"
+              ? `Keine Daten fuer KW ${selectedWeek}`
+              : `Keine Daten fuer ${selectedDay.dayLabel}, ${selectedDay.date}. ${selectedDay.monthLabel}`
+          }
+          description="Fuer diesen Zeitraum liegt im aktuellen Wochenplan noch nichts vor."
+          onCreatePlan={createPlanForSelection}
+          onManualAdd={openNewEventEditor}
+        />
       )}
 
       </div>
@@ -634,7 +820,7 @@ export function WeekView() {
           }
 
           openEventEditor(
-            selectedEventDetail.dayDate,
+            selectedEventDetail.dayKey,
             selectedEventDetail.id,
           );
         }}

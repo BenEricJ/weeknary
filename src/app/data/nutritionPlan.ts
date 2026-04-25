@@ -1274,8 +1274,12 @@ export function getMealSlotLabel(slot: MealSlotType) {
   }
 }
 
-export function getDayByDate(plan: NutritionPlan, date: number) {
-  return plan.days.find((day) => day.date === date) ?? plan.days[0];
+export function getDayByDate(plan: NutritionPlan, date: number | string) {
+  return (
+    plan.days.find((day) =>
+      typeof date === "string" ? day.isoDate === date : day.date === date,
+    ) ?? plan.days[0]
+  );
 }
 
 export function getMealById(plan: NutritionPlan, mealId?: string) {
@@ -1289,7 +1293,8 @@ export function getMealById(plan: NutritionPlan, mealId?: string) {
 export function getWeekDays(plan: NutritionPlan) {
   return plan.days.map((day) => ({
     day: day.dayShort,
-    date: day.date,
+    date: day.isoDate,
+    displayDate: day.date,
   }));
 }
 
@@ -1301,7 +1306,7 @@ export function getTodayPlanDate(plan: NutritionPlan) {
     `${now.getDate()}`.padStart(2, "0"),
   ].join("-");
 
-  return plan.days.find((day) => day.isoDate === isoDate)?.date ?? plan.days[0].date;
+  return plan.days.find((day) => day.isoDate === isoDate)?.isoDate ?? plan.days[0].isoDate;
 }
 
 export function getSelectedDayPrepNotes(plan: NutritionPlan, day: NutritionDay) {

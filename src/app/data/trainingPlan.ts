@@ -15,11 +15,21 @@ export interface TrainingPlanRow {
   monthLabel: string;
   zeit: string;
   training: string;
-  workoutIds: TrainingWorkoutId[];
+  workoutIds: string[];
+  generatedWorkouts?: Record<string, GeneratedTrainingWorkout>;
   kcalZielInklTraining: number;
   proteinMindestziel: number;
   tageslogik: string;
   recoveryNote?: string;
+}
+
+export interface GeneratedTrainingWorkout {
+  id: string;
+  title: string;
+  subtitle: string;
+  notes: string;
+  target: string;
+  timeLabel: string;
 }
 
 export const TRAINING_PLAN_ROWS: TrainingPlanRow[] = [

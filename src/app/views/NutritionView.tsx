@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -18,7 +19,11 @@ import { NutritionDayDetailDrawer } from "../components/NutritionDayDetailDrawer
 import { NutritionMealDetailDrawer } from "../components/NutritionMealDetailDrawer";
 import { AppTabHeader } from "../components/AppTabHeader";
 import { UserProfileDrawer } from "../components/UserProfileDrawer";
-import { WeekCalendar } from "../components/WeekCalendar";
+import { CalendarEmptyState } from "../components/CalendarEmptyState";
+import {
+  WeekCalendar,
+  type WeekCalendarSelectionMode,
+} from "../components/WeekCalendar";
 import {
   Drawer,
   DrawerContent,
@@ -39,7 +44,16 @@ import {
   type MealSlotType,
 } from "../data/nutritionPlan";
 import { useActiveMealPlan } from "../mealPlan/useActiveMealPlan";
-import { MealPlanRuntimePanel } from "../mealPlan/MealPlanRuntimePanel";
+import {
+  getDateInISOWeek,
+  getISOWeekDays,
+  getISOWeekNumber,
+  getISOWeekRange,
+  getISOWeekYear,
+  getSurroundingWeekOptions,
+  getWeekdayIndex,
+} from "../calendarWeekOptions";
+import { getDateParts, parseIsoDate, toIsoDate } from "../dateDisplay";
 
 const SLOT_META: Record<
   MealSlotType,
@@ -92,9 +106,19 @@ type TopStatDetails = {
 };
 
 export function NutritionView() {
+  const navigate = useNavigate();
   const activeMealPlan = useActiveMealPlan();
   const nutritionPlan = activeMealPlan.legacyPlan;
   const [selectedDate, setSelectedDate] = useState(() => getTodayPlanDate(nutritionPlan));
+  const currentWeekNumber = useMemo(
+    () => getISOWeekNumber(new Date()),
+    [],
+  );
+  const currentWeekYear = useMemo(() => getISOWeekYear(new Date()), []);
+  const [calendarMode, setCalendarMode] =
+    useState<WeekCalendarSelectionMode>("day");
+  const [selectedWeek, setSelectedWeek] =
+    useState(currentWeekNumber);
   const [isDayDetailsOpen, setIsDayDetailsOpen] = useState(false);
   const [selectedSlotType, setSelectedSlotType] = useState<MealSlotType | null>(null);
   const [selectedTopStat, setSelectedTopStat] = useState<TopStatDetails | null>(null);
@@ -127,13 +151,84 @@ export function NutritionView() {
     () => getSelectedDayPrepNotes(nutritionPlan, selectedDay),
     [nutritionPlan, selectedDay],
   );
-  const weekDays = useMemo(() => getWeekDays(nutritionPlan), [nutritionPlan]);
+  const selectedDateParts = useMemo(
+    () => getDateParts(selectedDate),
+    [selectedDate],
+  );
+  const hasSelectedDayData = useMemo(
+    () => nutritionPlan.days.some((day) => day.isoDate === selectedDate),
+    [nutritionPlan, selectedDate],
+  );
+  const selectedWeekRange = useMemo(
+    () => getISOWeekRange(currentWeekYear, selectedWeek),
+    [currentWeekYear, selectedWeek],
+  );
+  const hasSelectedWeekData = useMemo(
+    () =>
+      nutritionPlan.days.some(
+        (day) =>
+          day.isoDate >= selectedWeekRange.startDate &&
+          day.isoDate <= selectedWeekRange.endDate,
+      ),
+    [nutritionPlan, selectedWeekRange.endDate, selectedWeekRange.startDate],
+  );
+  const nutritionDateSet = useMemo(
+    () => new Set(nutritionPlan.days.map((day) => day.isoDate)),
+    [nutritionPlan],
+  );
+  const weekDays = useMemo(
+    () =>
+      getISOWeekDays(currentWeekYear, selectedWeek).map((day) => ({
+        ...day,
+        hasData: nutritionDateSet.has(day.date),
+      })),
+    [currentWeekYear, nutritionDateSet, selectedWeek],
+  );
+  const currentDate = useMemo(() => {
+    const today = toIsoDate(new Date());
+    return weekDays.some((day) => day.date === today)
+      ? today
+      : undefined;
+  }, [weekDays]);
+  const weekOptions = useMemo(
+    () =>
+      getSurroundingWeekOptions(selectedWeek).map((week) => {
+        const range = getISOWeekRange(currentWeekYear, week.weekNumber);
+        return {
+          ...week,
+          hasData: Array.from(nutritionDateSet).some(
+            (date) => date >= range.startDate && date <= range.endDate,
+          ),
+        };
+      }),
+    [currentWeekYear, nutritionDateSet, selectedWeek],
+  );
 
   useEffect(() => {
     setIsDayDetailsOpen(false);
     setSelectedSlotType(null);
     setSelectedTopStat(null);
   }, [selectedDate]);
+
+  const handleWeekChange = (weekNumber: number) => {
+    const weekdayIndex = getWeekdayIndex(parseIsoDate(selectedDate));
+    setSelectedWeek(weekNumber);
+    setSelectedDate(
+      getDateInISOWeek(currentWeekYear, weekNumber, weekdayIndex),
+    );
+  };
+
+  const createPlanForSelection = () => {
+    const range =
+      calendarMode === "week"
+        ? selectedWeekRange
+        : { startDate: selectedDate, endDate: selectedDate };
+    navigate(`/app/create?startDate=${range.startDate}&endDate=${range.endDate}`);
+  };
+
+  const goToPlanningProfile = () => {
+    navigate("/app/profile?tab=planning");
+  };
 
   const orderedMeals = useMemo(
     () =>
@@ -155,9 +250,9 @@ export function NutritionView() {
           `${getMealSlotLabel(slot.slot)}: ${meal.name} (${meal.nutrition.kcal} kcal, ${meal.nutrition.protein} g Protein)`,
         ];
       }),
-    [selectedDay],
+    [nutritionPlan, selectedDay],
   );
-  const plannedMealCount = selectedDay.meals.length;
+  const plannedMealCount = Math.max(1, selectedDay.meals.length);
   const targetKcalPerSlot = Math.round(selectedDay.targets.kcalTarget / plannedMealCount);
   const targetProteinPerSlot = Math.round(selectedDay.targets.proteinTarget / plannedMealCount);
 
@@ -178,27 +273,22 @@ export function NutritionView() {
 
       <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[88px]">
         <div className="space-y-6">
-          <MealPlanRuntimePanel
-            status={activeMealPlan.status}
-            runtimeStatus={activeMealPlan.runtimeStatus}
-            error={activeMealPlan.error}
-            userEmail={activeMealPlan.userEmail}
-            isRemoteConfigured={activeMealPlan.isRemoteConfigured}
-            onReload={() => void activeMealPlan.reload()}
-            onSignIn={activeMealPlan.signIn}
-            onCreateAccount={activeMealPlan.createAccount}
-            onSignOut={activeMealPlan.signOut}
-            onSaveRemoteDemoPlan={activeMealPlan.saveRemoteDemoPlan}
-            onArchiveActivePlan={activeMealPlan.archiveActivePlan}
-          />
-
           <WeekCalendar
             days={weekDays}
             activeDate={selectedDate}
             onDateChange={setSelectedDate}
+            currentDate={currentDate}
+            weeks={weekOptions}
+            activeWeek={selectedWeek}
+            onWeekChange={handleWeekChange}
+            currentWeek={currentWeekNumber}
+            selectionMode={calendarMode}
+            onSelectionModeChange={setCalendarMode}
             className="flex items-center justify-between rounded-[16px] border border-gray-100/60 bg-white p-2 shadow-sm"
           />
 
+          {(calendarMode === "week" ? hasSelectedWeekData : hasSelectedDayData) ? (
+            <>
           <section className="rounded-[20px] border border-[#E4E9E4] bg-[#F2F4F2] p-3 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -420,6 +510,19 @@ export function NutritionView() {
               </div>
             </div>
           </section>
+            </>
+          ) : (
+            <CalendarEmptyState
+              title={
+                calendarMode === "week"
+                  ? `Keine Ernaehrungsdaten fuer KW ${selectedWeek}`
+                  : `Keine Ernaehrungsdaten fuer ${selectedDateParts.dayLabel}, ${selectedDateParts.date}. ${selectedDateParts.monthLabel}`
+              }
+              description="Fuer diesen Zeitraum liegt im aktiven MealPlan noch kein Eintrag vor."
+              onCreatePlan={createPlanForSelection}
+              onManualAdd={goToPlanningProfile}
+            />
+          )}
         </div>
       </div>
 

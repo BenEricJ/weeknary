@@ -14,6 +14,7 @@ import {
 
 export interface WeekEventDetailItem {
   id: string;
+  dayKey: string;
   dayDate: number;
   title: string;
   subtitle: string;

@@ -10,12 +10,19 @@ import {
   Plus,
 } from "lucide-react";
 import { LibraryCard } from "./TrainingWidgets";
-import { WeekCalendar } from "../WeekCalendar";
+import { CalendarEmptyState } from "../CalendarEmptyState";
+import {
+  WeekCalendar,
+  type WeekCalendarSelectionMode,
+  type WeekInfo,
+} from "../WeekCalendar";
 import { WORKOUT_DATA } from "../WorkoutDetailDrawer";
 import {
   TRAINING_PLAN_ROWS,
   TRAINING_WEEK_DAYS,
   getTrainingPlanRowByDate,
+  type GeneratedTrainingWorkout,
+  type TrainingPlanRow,
   type TrainingWorkoutId,
 } from "../../data/trainingPlan";
 
@@ -97,16 +104,22 @@ function matchesCategory(
 }
 
 function buildWeeklyEntries(
-  activeDate: number,
+  rows: TrainingPlanRow[],
+  weekDays: Array<{ date: number | string }>,
+  activeDate: number | string,
   activeCategory: string,
 ) {
-  const scheduled = TRAINING_PLAN_ROWS.flatMap((row) =>
+  const scheduled = rows.flatMap((row, index) =>
     row.workoutIds
       .filter((workoutId) =>
         matchesCategory(workoutId, activeCategory),
       )
-      .map((workoutId) => ({ workoutId, row })),
-  ).filter((entry) => entry.row.dayDate !== activeDate);
+      .map((workoutId) => ({
+        workoutId,
+        row,
+        date: weekDays[index]?.date ?? row.dayDate,
+      })),
+  ).filter((entry) => entry.date !== activeDate);
 
   const recoveryEntries = RECOVERY_IDS.filter((workoutId) =>
     matchesCategory(workoutId, activeCategory),
@@ -149,8 +162,8 @@ function splitTimeLabels(value: string) {
     .filter(Boolean);
 }
 
-function buildPlanEntries() {
-  return TRAINING_PLAN_ROWS.flatMap((row) => {
+function buildPlanEntries(rows: TrainingPlanRow[]) {
+  return rows.flatMap((row) => {
     if (row.workoutIds.length > 0) {
       const timeLabels = splitTimeLabels(row.zeit);
       return row.workoutIds.map((workoutId, index) => ({
@@ -181,15 +194,26 @@ function PlanWorkoutCard({
   row,
   timeLabel,
   isOptional,
+  generatedWorkout,
   onClick,
 }: {
   workoutId: string;
-  row: (typeof TRAINING_PLAN_ROWS)[number];
+  row: TrainingPlanRow;
   timeLabel: string;
   isOptional: boolean;
+  generatedWorkout?: GeneratedTrainingWorkout;
   onClick: (workoutId: string) => void;
 }) {
   const workout = WORKOUT_DATA[workoutId];
+  if (!workout && generatedWorkout) {
+    return (
+      <GeneratedWorkoutCard
+        workout={generatedWorkout}
+        row={row}
+        isOptional={isOptional}
+      />
+    );
+  }
   if (!workout) return null;
   const Icon = workout.icon ?? Leaf;
   const energy = getWorkoutEnergy(workoutId);
@@ -244,13 +268,23 @@ function PlanWorkoutCard({
 function TrainingCard({
   workoutId,
   badge,
+  generatedWorkout,
   onClick,
 }: {
   workoutId: string;
   badge?: string;
+  generatedWorkout?: GeneratedTrainingWorkout;
   onClick: (workoutId: string) => void;
 }) {
   const workout = WORKOUT_DATA[workoutId];
+  if (!workout && generatedWorkout) {
+    return (
+      <GeneratedWorkoutCard
+        workout={generatedWorkout}
+        badge={badge}
+      />
+    );
+  }
   if (!workout) return null;
   const Icon = workout.icon;
   const meta = getWorkoutCategoryMeta(workoutId);
@@ -319,13 +353,23 @@ function TrainingCard({
 function WeekEntryRow({
   workoutId,
   label,
+  generatedWorkout,
   onClick,
 }: {
   workoutId: string;
   label: string;
+  generatedWorkout?: GeneratedTrainingWorkout;
   onClick: (workoutId: string) => void;
 }) {
   const workout = WORKOUT_DATA[workoutId];
+  if (!workout && generatedWorkout) {
+    return (
+      <GeneratedWorkoutCard
+        workout={generatedWorkout}
+        label={label}
+      />
+    );
+  }
   if (!workout) return null;
   const Icon = workout.icon;
   const meta = getWorkoutCategoryMeta(workoutId);
@@ -364,12 +408,71 @@ function WeekEntryRow({
   );
 }
 
+function GeneratedWorkoutCard({
+  workout,
+  row,
+  badge,
+  label,
+  isOptional = false,
+}: {
+  workout: GeneratedTrainingWorkout;
+  row?: TrainingPlanRow;
+  badge?: string;
+  label?: string;
+  isOptional?: boolean;
+}) {
+  return (
+    <div className="w-full rounded-[18px] border border-[#D9E8F1] bg-[#F3F8FB] p-3.5 text-left shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-white/70">
+          <Activity size={18} className="text-[#5B88A5]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h4 className="text-[13px] font-bold leading-tight text-gray-900">
+              {row ? (
+                <span className="mr-1 text-[#4A634A] uppercase tracking-[0.14em]">
+                  {row.tag}
+                </span>
+              ) : null}
+              {workout.title}
+            </h4>
+            {badge || isOptional ? (
+              <span className="shrink-0 rounded-full bg-[#E6EFF5] px-2 py-0.5 text-[9px] font-bold text-[#5B88A5]">
+                {badge ?? "Optional"}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1 text-[11px] leading-snug text-gray-600">
+            {workout.subtitle}
+          </p>
+          {workout.target || workout.notes ? (
+            <p className="mt-1.5 text-[11px] leading-snug text-gray-700">
+              {workout.target || workout.notes}
+            </p>
+          ) : null}
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-[11px] font-bold text-gray-900">
+            {label ?? workout.timeLabel}
+          </div>
+          <div className="text-[10px] font-medium text-gray-500">
+            KI-Plan
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PlanSection({
+  rows = TRAINING_PLAN_ROWS,
   setSelectedWorkout,
 }: {
+  rows?: TrainingPlanRow[];
   setSelectedWorkout: (workoutId: string) => void;
 }) {
-  const planEntries = buildPlanEntries();
+  const planEntries = buildPlanEntries(rows);
   const enduranceUnits = planEntries.filter(
     (entry) =>
       getWorkoutCategory(entry.workoutId) === "ausdauer",
@@ -439,6 +542,7 @@ export function PlanSection({
               row={entry.row}
               timeLabel={entry.timeLabel}
               isOptional={entry.isOptional}
+              generatedWorkout={entry.row.generatedWorkouts?.[entry.workoutId]}
               onClick={setSelectedWorkout}
             />
           ))}
@@ -471,14 +575,33 @@ export function WorkoutsSection({
   activeCategory,
   setActiveCategory,
   activeDate,
+  currentDate,
   setActiveDate,
   setSelectedWorkout,
+  rows = TRAINING_PLAN_ROWS,
+  weekDays = TRAINING_WEEK_DAYS,
+  weeks,
+  activeWeek,
+  currentWeek,
+  setActiveWeek,
+  calendarMode = "day",
+  setCalendarMode,
+  hasSelectedDayData = true,
+  hasSelectedWeekData = true,
+  selectedWeek,
+  selectedDateLabel = "dieser Tag",
+  onCreatePlan,
+  onManualAdd,
 }: any) {
-  const activeRow = getTrainingPlanRowByDate(activeDate);
-  const dayWorkouts = activeRow.workoutIds.filter((workoutId) =>
+  const activeRow =
+    rows.find((row: TrainingPlanRow, index: number) => weekDays[index]?.date === activeDate) ??
+    (typeof activeDate === "number" ? getTrainingPlanRowByDate(activeDate) : rows[0]);
+  const dayWorkouts = activeRow.workoutIds.filter((workoutId: string) =>
     matchesCategory(workoutId, activeCategory),
   );
   const { scheduled, recoveryEntries } = buildWeeklyEntries(
+    rows,
+    weekDays,
     activeDate,
     activeCategory,
   );
@@ -509,18 +632,40 @@ export function WorkoutsSection({
           DIESE WOCHE
         </h3>
         <WeekCalendar
-          days={TRAINING_WEEK_DAYS}
+          days={weekDays}
           activeDate={activeDate}
           onDateChange={setActiveDate}
+          currentDate={currentDate}
+          weeks={weeks as WeekInfo[] | undefined}
+          activeWeek={activeWeek}
+          onWeekChange={setActiveWeek}
+          currentWeek={currentWeek}
+          selectionMode={calendarMode as WeekCalendarSelectionMode}
+          onSelectionModeChange={setCalendarMode}
           className="flex justify-between items-center bg-white rounded-[16px] p-2 shadow-sm border border-gray-100/60 mb-5"
         />
 
+        {(calendarMode === "week" ? !hasSelectedWeekData : !hasSelectedDayData) ? (
+          <CalendarEmptyState
+            title={
+              calendarMode === "week"
+                ? `Keine Trainingsdaten fuer KW ${selectedWeek ?? activeWeek}`
+                : `Keine Trainingsdaten fuer ${selectedDateLabel}`
+            }
+            description="Fuer diesen Zeitraum liegt im aktiven TrainingPlan noch keine Einheit vor."
+            onCreatePlan={onCreatePlan}
+            onManualAdd={onManualAdd}
+          />
+        ) : (
+          <>
+
         {dayWorkouts.length > 0 ? (
           <div className="flex flex-col gap-3">
-            {dayWorkouts.map((workoutId) => (
+            {dayWorkouts.map((workoutId: string) => (
               <TrainingCard
                 key={`${activeRow.tag}-${workoutId}`}
                 workoutId={workoutId}
+                generatedWorkout={activeRow.generatedWorkouts?.[workoutId]}
                 badge={
                   activeRow.tag === "SA"
                     ? "Optional"
@@ -548,6 +693,8 @@ export function WorkoutsSection({
             </p>
           </div>
         )}
+          </>
+        )}
       </div>
 
       <div className="mb-8">
@@ -559,6 +706,7 @@ export function WorkoutsSection({
             <WeekEntryRow
               key={`${entry.row.tag}-${entry.workoutId}`}
               workoutId={entry.workoutId}
+              generatedWorkout={entry.row.generatedWorkouts?.[entry.workoutId]}
               label={`${entry.row.tag}, ${entry.row.zeit}`}
               onClick={setSelectedWorkout}
             />
