@@ -1,11 +1,17 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Check, ChevronLeft, Loader2, Save, Settings } from "lucide-react";
 import type { Profile, UserPreferences } from "../../domain";
 
 import { usePlanningContext } from "../planning/usePlanningContext";
 import { useWeekPlanOrchestration } from "../planning/useWeekPlanOrchestration";
-import { ProfileExpertPanel } from "../profile/ProfileExpertPanel";
+
+// Diagnose-Panels nur bei Bedarf laden, damit sie nicht im ProfileView-Chunk landen
+const ProfileExpertPanel = lazy(() =>
+  import("../profile/ProfileExpertPanel").then((module) => ({
+    default: module.ProfileExpertPanel,
+  })),
+);
 import { ProfileForm, ProfileSummary, NutritionForm, TrainingForm, WeekPlanningForm } from "../profile/ProfileForms";
 import { useProfileSettings } from "../profile/useProfileSettings";
 import { useActiveMealPlan } from "../mealPlan/useActiveMealPlan";
@@ -159,16 +165,24 @@ export function ProfileView() {
             ) : null}
 
             {activeTab === "expert" ? (
-              <ProfileExpertPanel
-                profileStatus={settings.status}
-                profileRuntimeStatus={settings.runtimeStatus}
-                profileError={settings.error}
-                activeWeekPlan={activeWeekPlan}
-                activeMealPlan={activeMealPlan}
-                activeTrainingPlan={activeTrainingPlan}
-                planningContext={planningContext}
-                orchestration={orchestration}
-              />
+              <Suspense
+                fallback={
+                  <div className="rounded-[18px] border border-gray-100 bg-white p-4 text-[13px] font-bold text-gray-700 shadow-sm">
+                    Expert-Panel wird geladen.
+                  </div>
+                }
+              >
+                <ProfileExpertPanel
+                  profileStatus={settings.status}
+                  profileRuntimeStatus={settings.runtimeStatus}
+                  profileError={settings.error}
+                  activeWeekPlan={activeWeekPlan}
+                  activeMealPlan={activeMealPlan}
+                  activeTrainingPlan={activeTrainingPlan}
+                  planningContext={planningContext}
+                  orchestration={orchestration}
+                />
+              </Suspense>
             ) : null}
 
             {message ? (
