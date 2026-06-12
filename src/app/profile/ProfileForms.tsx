@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type {
   Profile,
@@ -18,11 +18,17 @@ import {
   formatOptionLabel,
   kitchenAppliances,
   levelOptions,
-  parseOptionalNumber,
   timeBlockCategories,
-  toLines,
   weekdays,
 } from "./profileFormModel";
+import {
+  BooleanBlock as BooleanInput,
+  JsonBlock as JsonInput,
+  LineListBlock as LineListInput,
+  NumberInputBlock as NumberInput,
+  SelectBlock,
+  TextInputBlock as TextInput,
+} from "../components/forms/FormBlocks";
 
 export function ProfileSummary({
   profile,
@@ -1615,171 +1621,11 @@ export function AdvancedSection({ title, children }: { title: string; children: 
   );
 }
 
-function TextInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-        {label}
-      </span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-1 h-9 w-full bg-transparent text-[13px] font-bold text-gray-900 outline-none"
-      />
-    </label>
-  );
-}
-
-function NumberInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value?: number;
-  onChange: (value: number | undefined) => void;
-}) {
-  return (
-    <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-        {label}
-      </span>
-      <input
-        type="number"
-        value={value ?? ""}
-        onChange={(event) => onChange(parseOptionalNumber(event.target.value))}
-        className="mt-1 h-9 w-full bg-transparent text-[13px] font-bold text-gray-900 outline-none"
-      />
-    </label>
-  );
-}
-
-function SelectInput({
-  label,
-  value,
-  options,
-  onChange,
-}: {
+function SelectInput(props: {
   label: string;
   value: string;
   options: string[];
   onChange: (value: string) => void;
 }) {
-  return (
-    <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-1 h-9 w-full bg-transparent text-[13px] font-bold text-gray-900 outline-none"
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {formatOptionLabel(option)}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function BooleanInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center justify-between rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-        {label}
-      </span>
-      <input
-        type="checkbox"
-        checked={value}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-[#5E7A5E]"
-      />
-    </label>
-  );
-}
-
-function LineListInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string[];
-  onChange: (value: string[]) => void;
-}) {
-  return (
-    <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-        {label}
-      </span>
-      <textarea
-        value={value.join("\n")}
-        rows={4}
-        onChange={(event) => onChange(toLines(event.target.value))}
-        className="mt-2 w-full resize-none bg-transparent text-[13px] leading-relaxed text-gray-900 outline-none"
-      />
-    </label>
-  );
-}
-
-function JsonInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: unknown;
-  onChange: (value: unknown) => void;
-}) {
-  const [text, setText] = useState(() => JSON.stringify(value, null, 2));
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setText(JSON.stringify(value, null, 2));
-  }, [value]);
-
-  return (
-    <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-        {label}
-      </span>
-      <textarea
-        value={text}
-        rows={5}
-        onChange={(event) => {
-          const nextText = event.target.value;
-          setText(nextText);
-
-          try {
-            const parsed = JSON.parse(nextText);
-            setError(null);
-            onChange(parsed);
-          } catch {
-            setError("JSON ungültig.");
-          }
-        }}
-        className="mt-2 w-full resize-none bg-transparent font-mono text-[12px] leading-relaxed text-gray-900 outline-none"
-      />
-      {error ? <span className="mt-1 block text-[10px] font-bold text-[#9C3A3A]">{error}</span> : null}
-    </label>
-  );
+  return <SelectBlock {...props} formatLabel={formatOptionLabel} />;
 }

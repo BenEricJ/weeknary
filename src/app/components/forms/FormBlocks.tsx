@@ -7,11 +7,13 @@ export function SelectBlock({
   value,
   options,
   onChange,
+  formatLabel = (option) => option || "none",
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (value: string) => void;
+  formatLabel?: (option: string) => string;
 }) {
   return (
     <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
@@ -25,7 +27,7 @@ export function SelectBlock({
       >
         {options.map((option) => (
           <option key={option || "empty"} value={option}>
-            {option || "none"}
+            {formatLabel(option)}
           </option>
         ))}
       </select>
@@ -56,6 +58,65 @@ export function TextInputBlock({
   );
 }
 
+export function NumberInputBlock({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value?: number;
+  onChange: (value: number | undefined) => void;
+}) {
+  return (
+    <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        {label}
+      </span>
+      <input
+        type="number"
+        value={value ?? ""}
+        onChange={(event) => {
+          const raw = event.target.value.trim();
+          const parsed = Number(raw);
+          onChange(raw && Number.isFinite(parsed) ? parsed : undefined);
+        }}
+        className="mt-1 h-9 w-full bg-transparent text-[13px] font-bold text-gray-900 outline-none"
+      />
+    </label>
+  );
+}
+
+export function LineListBlock({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string[];
+  onChange: (value: string[]) => void;
+}) {
+  return (
+    <label className="block rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        {label}
+      </span>
+      <textarea
+        value={value.join("\n")}
+        rows={4}
+        onChange={(event) =>
+          onChange(
+            event.target.value
+              .split("\n")
+              .map((line) => line.trim())
+              .filter(Boolean),
+          )
+        }
+        className="mt-2 w-full resize-none bg-transparent text-[13px] leading-relaxed text-gray-900 outline-none"
+      />
+    </label>
+  );
+}
+
 export function BooleanBlock({
   label,
   value,
@@ -66,7 +127,7 @@ export function BooleanBlock({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between rounded-[14px] border border-gray-100 bg-white p-3 shadow-sm">
+    <label className="flex items-center justify-between rounded-[16px] border border-gray-100 bg-white p-3 shadow-sm">
       <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
         {label}
       </span>
