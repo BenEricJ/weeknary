@@ -1,12 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Drawer } from "vaul";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Apple,
   Bike,
   Calendar,
   CheckSquare,
-  ChevronLeft,
   Clock,
   Droplet,
   Dumbbell,
@@ -14,14 +12,13 @@ import {
   Heart,
   Info,
   Map as MapIcon,
-  MoreHorizontal,
   Play,
   RefreshCw,
-  Share,
   Square,
   Target,
   Zap,
 } from "lucide-react";
+import { DetailDrawer, HeroBadge, StatsBarItem } from "./ui/DetailDrawer";
 
 export type SportType =
   | "Laufen"
@@ -241,12 +238,10 @@ interface Props {
 }
 
 export function WorkoutDetailDrawer({ workoutId, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState("Überblick");
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!workoutId) return;
-    setActiveTab("Überblick");
     setCheckedItems({});
   }, [workoutId]);
 
@@ -256,189 +251,178 @@ export function WorkoutDetailDrawer({ workoutId, onClose }: Props) {
 
   const Icon = workout.icon;
 
-  return (
-    <Drawer.Root open={!!workoutId} onOpenChange={(open) => !open && onClose()}>
-      <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/40" />
-        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 mx-auto flex h-[95vh] max-w-[390px] flex-col overflow-hidden rounded-t-[24px] bg-[#F5F4EF] outline-none">
-          <div className="flex items-center justify-between bg-white px-4 py-3">
-            <Drawer.Close asChild>
-              <button aria-label="Zurück" className="p-1 text-gray-900"><ChevronLeft size={24} /></button>
-            </Drawer.Close>
-            <h2 className="text-[16px] font-bold text-gray-900">Workout</h2>
-            <div className="mr-1 flex items-center gap-4 text-gray-900"><Share size={20} strokeWidth={2} /><MoreHorizontal size={24} /></div>
-          </div>
+  const overviewTab = (
+    <div className="space-y-5">
+      <section className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">
+        <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+          <Target size={14} className="text-[#6A816A]" />
+          Ziel & Fokus
+        </div>
+        <p className="text-[14px] font-bold text-gray-900">{workout.goal.title}</p>
+        <p className="mt-1 text-[12px] text-gray-600">{mainStep ? `${mainStep.int} • ${mainStep.target}` : `${workout.goal.loadType}: ${workout.goal.loadVal}`}</p>
+      </section>
 
-          <div className="relative flex-1 overflow-y-auto pb-4">
-            <div className="relative">
-              <div className="h-[240px] w-full">
-                <img src={workout.image} alt={workout.title} className="h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-black/40" />
+      <section className="grid grid-cols-2 gap-3">
+        {workout.statsBar.map((stat) => (
+          <div key={`${workout.id}-${stat.val}-card`} className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">
+            <div className="mb-2 flex items-center gap-2 text-gray-500"><stat.icon size={14} /><span className="text-[10px] font-medium uppercase tracking-wide">{labelForStat(stat.val)}</span></div>
+            <p className="text-[14px] font-bold text-gray-900">{stat.val}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="rounded-[16px] border border-[#EBEAE4] bg-white overflow-hidden">
+        {workout.steps.map((step, index) => (
+          <div key={`${workout.id}-${step.name}`} className={`grid grid-cols-[1fr_auto] gap-3 px-4 py-4 ${index !== workout.steps.length - 1 ? "border-b border-[#EBEAE4]" : ""} ${step.isMain ? "bg-[#F5F4EF]" : ""}`}>
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <div className={`h-2 w-2 rounded-full ${step.color}`} />
+                <span className="text-[13px] font-bold text-gray-900">{step.name}</span>
               </div>
-              <div className="absolute left-4 top-4 flex gap-2">
-                <span className="flex items-center gap-1 rounded-[6px] bg-[#6A816A]/90 px-2 py-1 text-[10px] font-bold text-white"><Icon size={12} /> {workout.sport}</span>
-              </div>
-              <div className="absolute right-4 top-4">
-                <span className="flex items-center gap-1 rounded-[6px] border border-white/30 bg-white/20 px-2 py-1 text-[10px] font-bold text-white"><Calendar size={12} /> Geplant</span>
-              </div>
-              <div className="absolute bottom-[44px] left-4 right-4 text-white">
-                <div className="flex items-end justify-between">
-                  <div>
-                    <Drawer.Title className="mb-1 text-[24px] font-bold leading-tight">{workout.title}</Drawer.Title>
-                    <Drawer.Description className="mb-1.5 text-[13px] font-medium text-white/90">{workout.subtitle}</Drawer.Description>
-                    <p className="max-w-[240px] text-[12px] leading-snug text-white/80">{workout.desc}</p>
-                  </div>
-                  <button aria-label="Training starten" className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-white/20 bg-[#6A816A]/90">
-                    <Play size={18} className="ml-1 fill-white text-white" />
-                  </button>
+              <p className="text-[11px] text-gray-500">{step.int} • {step.target}</p>
+            </div>
+            <span className="text-[12px] font-medium text-gray-700">{step.dur}</span>
+          </div>
+        ))}
+      </section>
+
+      <div className="grid grid-cols-[1fr_1.05fr] gap-4">
+        <section className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">
+          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Empfehlungen</h3>
+          <div className="space-y-3">
+            {workout.recs.map((rec) => (
+              <div key={`${workout.id}-${rec.title}`} className="flex gap-2">
+                <rec.icon size={16} className={`${rec.color} mt-0.5 shrink-0`} />
+                <div>
+                  <p className="text-[11px] font-bold text-gray-900">{rec.title}</p>
+                  <p className="text-[10px] leading-tight text-gray-500">{rec.desc}</p>
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between bg-black/60 px-5 py-3 text-white">
-                {workout.statsBar.map((stat) => (
-                  <span key={`${workout.id}-${stat.val}`} className="flex items-center gap-1.5 text-[12px] font-medium">
-                    <stat.icon size={14} className="text-gray-300" />
-                    {stat.val}
-                  </span>
-                ))}
-              </div>
-            </div>
+            ))}
+          </div>
+        </section>
 
-            <div className="sticky top-0 z-10 flex justify-between border-b border-[#EBEAE4] bg-white px-2 pt-1 shadow-sm">
-              {["Überblick", "Details", "Notizen"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-3 text-[12.5px] ${activeTab === tab ? "border-b-[2.5px] border-[#6A816A] font-bold text-[#6A816A]" : "font-medium text-gray-500"}`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
+        <section className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">
+          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Checkliste</h3>
+          <div className="space-y-2.5">
+            {workout.checklist.map((item) => (
+              <label
+                key={item.id}
+                className="flex cursor-pointer items-start gap-2"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setCheckedItems((previous) => ({ ...previous, [item.id]: !previous[item.id] }));
+                }}
+              >
+                {checkedItems[item.id] ? <CheckSquare size={14} className="mt-0.5 shrink-0 text-[#6A816A]" /> : <Square size={14} className="mt-0.5 shrink-0 text-gray-300" />}
+                <span className={`text-[11px] font-medium leading-tight ${checkedItems[item.id] ? "text-gray-400 line-through" : "text-gray-700"}`}>{item.label}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
 
-            <div className="space-y-5 p-5">
-              {activeTab === "Überblick" && (
-                <>
-                  <section className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">
-                    <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                      <Target size={14} className="text-[#6A816A]" />
-                      Ziel & Fokus
-                    </div>
-                    <p className="text-[14px] font-bold text-gray-900">{workout.goal.title}</p>
-                    <p className="mt-1 text-[12px] text-gray-600">{mainStep ? `${mainStep.int} • ${mainStep.target}` : `${workout.goal.loadType}: ${workout.goal.loadVal}`}</p>
-                  </section>
-
-                  <section className="grid grid-cols-2 gap-3">
-                    {workout.statsBar.map((stat) => (
-                      <div key={`${workout.id}-${stat.val}-card`} className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">
-                        <div className="mb-2 flex items-center gap-2 text-gray-500"><stat.icon size={14} /><span className="text-[10px] font-medium uppercase tracking-wide">{labelForStat(stat.val)}</span></div>
-                        <p className="text-[14px] font-bold text-gray-900">{stat.val}</p>
-                      </div>
-                    ))}
-                  </section>
-
-                  <section className="rounded-[16px] border border-[#EBEAE4] bg-white overflow-hidden">
-                    {workout.steps.map((step, index) => (
-                      <div key={`${workout.id}-${step.name}`} className={`grid grid-cols-[1fr_auto] gap-3 px-4 py-4 ${index !== workout.steps.length - 1 ? "border-b border-[#EBEAE4]" : ""} ${step.isMain ? "bg-[#F5F4EF]" : ""}`}>
-                        <div>
-                          <div className="mb-1 flex items-center gap-2">
-                            <div className={`h-2 w-2 rounded-full ${step.color}`} />
-                            <span className="text-[13px] font-bold text-gray-900">{step.name}</span>
-                          </div>
-                          <p className="text-[11px] text-gray-500">{step.int} • {step.target}</p>
-                        </div>
-                        <span className="text-[12px] font-medium text-gray-700">{step.dur}</span>
-                      </div>
-                    ))}
-                  </section>
-
-                  <div className="grid grid-cols-[1fr_1.05fr] gap-4">
-                    <section className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">
-                      <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Empfehlungen</h3>
-                      <div className="space-y-3">
-                        {workout.recs.map((rec) => (
-                          <div key={`${workout.id}-${rec.title}`} className="flex gap-2">
-                            <rec.icon size={16} className={`${rec.color} mt-0.5 shrink-0`} />
-                            <div>
-                              <p className="text-[11px] font-bold text-gray-900">{rec.title}</p>
-                              <p className="text-[10px] leading-tight text-gray-500">{rec.desc}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-
-                    <section className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">
-                      <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Checkliste</h3>
-                      <div className="space-y-2.5">
-                        {workout.checklist.map((item) => (
-                          <label
-                            key={item.id}
-                            className="flex cursor-pointer items-start gap-2"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              setCheckedItems((previous) => ({ ...previous, [item.id]: !previous[item.id] }));
-                            }}
-                          >
-                            {checkedItems[item.id] ? <CheckSquare size={14} className="mt-0.5 shrink-0 text-[#6A816A]" /> : <Square size={14} className="mt-0.5 shrink-0 text-gray-300" />}
-                            <span className={`text-[11px] font-medium leading-tight ${checkedItems[item.id] ? "text-gray-400 line-through" : "text-gray-700"}`}>{item.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </section>
-                  </div>
-                </>
-              )}
-
-              {activeTab === "Details" && (
+  const detailsTab = (
                 <section className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">
-                  <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Detaillierte Infos</h3>
-                  <div className="space-y-3">
-                    <DetailRow icon={Icon} label="Sportart" value={workout.sport} />
-                    <DetailRow icon={Target} label="Trainingsart" value={workout.title} />
-                    <DetailRow icon={Activity} label="Schwierigkeit" value={workout.goal.intensity} />
-                    <DetailRow icon={Info} label={workout.goal.loadType} value={workout.goal.loadVal} />
-                    {mainStep ? <DetailRow icon={Clock} label="Hauptblock" value={`${mainStep.dur} • ${mainStep.target}`} /> : null}
-                  </div>
+      <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Detaillierte Infos</h3>
+      <div className="space-y-3">
+        <DetailRow icon={Icon} label="Sportart" value={workout.sport} />
+        <DetailRow icon={Target} label="Trainingsart" value={workout.title} />
+        <DetailRow icon={Activity} label="Schwierigkeit" value={workout.goal.intensity} />
+        <DetailRow icon={Info} label={workout.goal.loadType} value={workout.goal.loadVal} />
+        {mainStep ? <DetailRow icon={Clock} label="Hauptblock" value={`${mainStep.dur} • ${mainStep.target}`} /> : null}
+      </div>
                 </section>
-              )}
+  );
 
-              {activeTab === "Notizen" && (
-                <>
-                  <section>
-                    <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Deine Notizen</h3>
-                    <textarea
-                      className="h-[120px] w-full resize-none rounded-[16px] border border-[#EBEAE4] bg-white p-4 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-[#6A816A]"
-                      placeholder="Wie hat sich die Einheit angefühlt? Was lief gut, was willst du anpassen?"
-                    />
-                  </section>
-                  <section>
-                    <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Tags</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {workout.tags.map((tag) => (
-                        <span key={`${workout.id}-${tag}`} className="rounded-[8px] bg-white px-3 py-1.5 text-[12px] font-medium text-gray-700 shadow-sm">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </section>
-                </>
-              )}
+  const notesTab = (
+    <div className="space-y-5">
+      <section>
+        <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Deine Notizen</h3>
+        <textarea
+          className="h-[120px] w-full resize-none rounded-[16px] border border-[#EBEAE4] bg-white p-4 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-[#6A816A]"
+          placeholder="Wie hat sich die Einheit angefühlt? Was lief gut, was willst du anpassen?"
+        />
+      </section>
+      <section>
+        <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Tags</h3>
+        <div className="flex flex-wrap gap-2">
+          {workout.tags.map((tag) => (
+            <span key={`${workout.id}-${tag}`} className="rounded-[8px] bg-white px-3 py-1.5 text-[12px] font-medium text-gray-700 shadow-sm">
+              {tag}
+            </span>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+
+  return (
+    <DetailDrawer
+      open={!!workoutId}
+      onClose={onClose}
+      title="Workout"
+      description={workout.subtitle}
+      hero={{
+        background: (
+          <>
+            <img src={workout.image} alt={workout.title} className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-black/40" />
+          </>
+        ),
+        badges: (
+          <HeroBadge className="flex items-center gap-1 bg-[#6A816A]/90 text-white">
+            <Icon size={12} /> {workout.sport}
+          </HeroBadge>
+        ),
+        badgesRight: (
+          <HeroBadge className="flex items-center gap-1 border border-white/30 bg-white/20 text-white">
+            <Calendar size={12} /> Geplant
+          </HeroBadge>
+        ),
+        titleBlockClassName: "absolute bottom-[44px] left-4 right-4 text-white",
+        titleBlock: (
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="mb-1 text-[24px] font-bold leading-tight">{workout.title}</h2>
+              <p className="mb-1.5 text-[13px] font-medium text-white/90">{workout.subtitle}</p>
+              <p className="max-w-[240px] text-[12px] leading-snug text-white/80">{workout.desc}</p>
             </div>
-          </div>
-
-          <div className="grid grid-cols-[1fr_1.3fr] gap-3 border-t border-[#EBEAE4] bg-white px-4 pb-6 pt-3">
-            <button className="flex items-center justify-center gap-2 rounded-[12px] border border-[#EBEAE4] bg-[#F5F4EF] py-3.5 text-[13px] font-bold text-gray-800">
-              <Calendar size={16} className="text-gray-500" />
-              Kalender
-            </button>
-            <button className="flex items-center justify-center gap-2 rounded-[12px] bg-[#6A816A] py-3.5 text-[13px] font-bold text-white">
-              <Play size={16} className="fill-white" />
-              Starten
+            <button aria-label="Training starten" className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-white/20 bg-[#6A816A]/90">
+              <Play size={18} className="ml-1 fill-white text-white" />
             </button>
           </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+        ),
+        statsBar: workout.statsBar.map((stat) => (
+          <StatsBarItem
+            key={`${workout.id}-${stat.val}`}
+            icon={<stat.icon size={14} className="text-gray-300" />}
+            label={stat.val}
+          />
+        )),
+      }}
+      tabs={[
+        { label: "Überblick", content: overviewTab },
+        { label: "Details", content: detailsTab },
+        { label: "Notizen", content: notesTab },
+      ]}
+      bodyClassName="space-y-5 p-5"
+      footerClassName="px-4 pb-6 pt-3 bg-white border-t border-[#EBEAE4] shrink-0"
+      footer={
+        <div className="grid grid-cols-[1fr_1.3fr] gap-3">
+          <button className="flex items-center justify-center gap-2 rounded-[12px] border border-[#EBEAE4] bg-[#F5F4EF] py-3.5 text-[13px] font-bold text-gray-800">
+            <Calendar size={16} className="text-gray-500" />
+            Kalender
+          </button>
+          <button className="flex items-center justify-center gap-2 rounded-[12px] bg-[#6A816A] py-3.5 text-[13px] font-bold text-white">
+            <Play size={16} className="fill-white" />
+            Starten
+          </button>
+        </div>
+      }
+    />
   );
 }
 

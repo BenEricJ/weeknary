@@ -17,11 +17,20 @@ export interface DetailDrawerHero {
   /** Höhe der Hero-Section (default 240) */
   height?: number;
   /** Tailwind-Klasse für den Hintergrund (Gradient/Farbe) */
-  surfaceClassName: string;
+  surfaceClassName?: string;
+  /**
+   * Eigener Hintergrund (z.B. Bild + Abdunklung). Ersetzt die
+   * Standard-Glassmorphism-Overlays.
+   */
+  background?: React.ReactNode;
   /** Badges oben-links */
   badges?: React.ReactNode;
+  /** Badges oben-rechts */
+  badgesRight?: React.ReactNode;
   /** Icon + Titel-Block unten */
   titleBlock?: React.ReactNode;
+  /** Positions-/Farbklassen für den Titel-Block (default: absolute bottom-[52px] left-4 right-4) */
+  titleBlockClassName?: string;
   /** Stats-Bar am unteren Rand */
   statsBar?: React.ReactNode;
 }
@@ -32,6 +41,8 @@ export interface DetailDrawerProps {
   onClose: () => void;
   /** Header-Titel (z.B. "Termin-Details") */
   title: string;
+  /** Untertitel unter dem Header-Titel (z.B. Datum) */
+  headerSubtitle?: string;
   /** Screenreader-Beschreibung */
   description?: string;
   /** Optionale Hero-Section */
@@ -44,18 +55,25 @@ export interface DetailDrawerProps {
   footer?: React.ReactNode;
   /** Header-Actions rechts (default: Share + MoreHorizontal) */
   headerActions?: React.ReactNode;
+  /** Klassen für den Content-Container (default: p-5 space-y-6) */
+  bodyClassName?: string;
+  /** Klassen für den Footer-Container */
+  footerClassName?: string;
 }
 
 export function DetailDrawer({
   open,
   onClose,
   title,
+  headerSubtitle,
   description,
   hero,
   tabs,
   children,
   footer,
   headerActions,
+  bodyClassName = "p-5 space-y-6",
+  footerClassName = "px-4 pb-8 pt-3 bg-white border-t border-[#EBEAE4] shrink-0",
 }: DetailDrawerProps) {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
 
@@ -84,9 +102,20 @@ export function DetailDrawer({
             >
               <ChevronLeft size={24} />
             </button>
-            <Drawer.Title className="text-[16px] font-bold text-gray-900">
-              {title}
-            </Drawer.Title>
+            {headerSubtitle ? (
+              <div className="text-center">
+                <Drawer.Title className="text-[16px] font-bold text-gray-900">
+                  {title}
+                </Drawer.Title>
+                <p className="text-[11px] font-medium text-gray-500">
+                  {headerSubtitle}
+                </p>
+              </div>
+            ) : (
+              <Drawer.Title className="text-[16px] font-bold text-gray-900">
+                {title}
+              </Drawer.Title>
+            )}
             <div className="flex items-center gap-4 text-gray-900 mr-1">
               {headerActions ?? (
                 <>
@@ -123,7 +152,7 @@ export function DetailDrawer({
             )}
 
             {/* Content */}
-            <div className="p-5 space-y-6">
+            <div className={bodyClassName}>
               {tabs && tabs.length > 0 ? (
                 <div className="animate-in fade-in duration-300">
                   {tabs[activeTabIndex]?.content}
@@ -135,11 +164,7 @@ export function DetailDrawer({
           </div>
 
           {/* ---- Footer ---- */}
-          {footer && (
-            <div className="px-4 pb-8 pt-3 bg-white border-t border-[#EBEAE4] shrink-0">
-              {footer}
-            </div>
-          )}
+          {footer && <div className={footerClassName}>{footer}</div>}
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>
@@ -153,8 +178,11 @@ export function DetailDrawer({
 function DrawerHero({
   height = 240,
   surfaceClassName,
+  background,
   badges,
+  badgesRight,
   titleBlock,
+  titleBlockClassName = "absolute bottom-[52px] left-4 right-4",
   statsBar,
 }: DetailDrawerHero) {
   return (
@@ -166,22 +194,25 @@ function DrawerHero({
         )}
         style={{ height }}
       >
-        {/* Glassmorphism Overlays */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.9),transparent_45%)]" />
-        <div className="absolute -top-10 -right-8 w-36 h-36 rounded-full bg-white/50 blur-2xl" />
-        <div className="absolute bottom-10 -left-10 w-32 h-32 rounded-full bg-white/35 blur-2xl" />
+        {background ?? (
+          <>
+            {/* Glassmorphism Overlays */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.9),transparent_45%)]" />
+            <div className="absolute -top-10 -right-8 w-36 h-36 rounded-full bg-white/50 blur-2xl" />
+            <div className="absolute bottom-10 -left-10 w-32 h-32 rounded-full bg-white/35 blur-2xl" />
+          </>
+        )}
 
         {/* Badges */}
         {badges && (
           <div className="absolute top-4 left-4 flex gap-2">{badges}</div>
         )}
+        {badgesRight && (
+          <div className="absolute top-4 right-4 flex gap-2">{badgesRight}</div>
+        )}
 
         {/* Title block */}
-        {titleBlock && (
-          <div className="absolute bottom-[52px] left-4 right-4">
-            {titleBlock}
-          </div>
-        )}
+        {titleBlock && <div className={titleBlockClassName}>{titleBlock}</div>}
 
         {/* Stats bar */}
         {statsBar && (

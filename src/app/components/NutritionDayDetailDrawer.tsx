@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Drawer } from "vaul";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  ChevronLeft,
   CircleCheck,
 } from "lucide-react";
+import { DetailDrawer } from "./ui/DetailDrawer";
 import {
   MEAL_SLOT_ORDER,
   getMealSlotLabel,
@@ -182,302 +181,277 @@ export function NutritionDayDetailDrawer({
   ];
 
   return (
-    <Drawer.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/40" />
-        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 mx-auto flex h-[95vh] max-w-[390px] flex-col overflow-hidden rounded-t-[24px] bg-[#F5F4EF] outline-none">
-          <Drawer.Description className="sr-only">
-            Tagesdetails für Nährwerte, Meal-Slots und kritische Mikronährstoffe.
-          </Drawer.Description>
+    <DetailDrawer
+      open={open}
+      onClose={onClose}
+      title="Details"
+      headerSubtitle={`${day.dayLabel}, ${day.date}. ${day.monthLabel}`}
+      description="Tagesdetails für Nährwerte, Meal-Slots und kritische Mikronährstoffe."
+      headerActions={<div className="w-8" />}
+      bodyClassName="px-4 pb-1 pt-4 space-y-6"
+      footer={
+        <button
+          onClick={onClose}
+          className="w-full rounded-[12px] bg-[#2F3130] py-3.5 text-[13px] font-bold text-white shadow-sm transition-transform active:scale-95"
+        >
+          Schliessen
+        </button>
+      }
+    >
+      <section>
+        <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+          Tagesziele
+        </h3>
+        <div className="rounded-[18px] border border-[#DADFD8] bg-white p-4 shadow-sm">
+          <GoalProgress
+            label="Kalorien-Basis"
+            current={plannedMacros.kcal}
+            target={day.targets.kcalTarget}
+            unit="kcal"
+            colorClassName="bg-[#6A816A]"
+          />
+          <GoalProgress
+            label="Protein-Basis"
+            current={plannedMacros.protein}
+            target={day.targets.proteinTarget}
+            unit="g"
+            colorClassName="bg-[#A3B8A3]"
+          />
+          <GoalProgress
+            label="Kohlenhydrate-Basis"
+            current={plannedMacros.carbs}
+            target={estimatedTotals.carbs}
+            unit="g"
+            colorClassName="bg-[#B7BCA7]"
+          />
+          <GoalProgress
+            label="Fett-Basis"
+            current={plannedMacros.fat}
+            target={estimatedTotals.fat}
+            unit="g"
+            colorClassName="bg-[#C1B29A]"
+          />
 
-          <div className="flex items-center justify-between border-b border-[#EBEAE4] bg-white px-4 py-3">
-            <button
-              onClick={onClose}
-              className="rounded-full p-1 text-gray-900 transition-colors hover:bg-gray-100"
-              aria-label="Zurück"
-            >
-              <ChevronLeft size={24} />
-            </button>
-            <div className="text-center">
-              <Drawer.Title className="text-[16px] font-bold text-gray-900">
-                Details
-              </Drawer.Title>
-              <p className="text-[11px] font-medium text-gray-500">
-                {day.dayLabel}, {day.date}. {day.monthLabel}
+          <div className="mt-4 rounded-[16px] bg-[#F7F6F1] p-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+              Heute mitdenken
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {plan.week.microRoutine.slice(0, 4).map((item) => (
+                <span
+                  key={item}
+                  className="rounded-[8px] bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-700 shadow-sm"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+            {externalMealCount > 0 ? (
+              <p className="mt-3 text-[11px] leading-snug text-[#A36A3B]">
+                {externalMealCount} externer Slot ist eingeplant. Kohlenhydrate und Fett
+                enthalten hier Schätzungen aus vergleichbaren Plan-Meals.
               </p>
-            </div>
-            <div className="w-8" />
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+          Mahlzeiten
+        </h3>
+        <div className="rounded-[18px] border border-[#DADFD8] bg-white p-4 shadow-sm">
+          <div className="mb-4 flex flex-wrap gap-2">
+            {mealSummaries.map((meal) => (
+              <button
+                key={meal.slotType}
+                onClick={() => setActiveSlotType(meal.slotType)}
+                className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                  activeSlotType === meal.slotType
+                    ? "border-[#32D6BD] bg-[#F2FFFC] text-gray-900"
+                    : "border-[#DADFD8] bg-white text-gray-500"
+                }`}
+              >
+                {getMealSlotLabel(meal.slotType)}
+              </button>
+            ))}
           </div>
 
-          <div className="hide-scrollbar flex-1 overflow-y-auto px-4 pb-5 pt-4">
-            <div className="space-y-6">
-              <section>
-                <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                  Tagesziele
-                </h3>
-                <div className="rounded-[18px] border border-[#DADFD8] bg-white p-4 shadow-sm">
-                  <GoalProgress
-                    label="Kalorien-Basis"
-                    current={plannedMacros.kcal}
-                    target={day.targets.kcalTarget}
-                    unit="kcal"
-                    colorClassName="bg-[#6A816A]"
-                  />
-                  <GoalProgress
-                    label="Protein-Basis"
-                    current={plannedMacros.protein}
-                    target={day.targets.proteinTarget}
-                    unit="g"
-                    colorClassName="bg-[#A3B8A3]"
-                  />
-                  <GoalProgress
-                    label="Kohlenhydrate-Basis"
-                    current={plannedMacros.carbs}
-                    target={estimatedTotals.carbs}
-                    unit="g"
-                    colorClassName="bg-[#B7BCA7]"
-                  />
-                  <GoalProgress
-                    label="Fett-Basis"
-                    current={plannedMacros.fat}
-                    target={estimatedTotals.fat}
-                    unit="g"
-                    colorClassName="bg-[#C1B29A]"
-                  />
+          {activeMealSummary ? (
+            <div className="space-y-3">
+              <div className="rounded-[14px] bg-[#F7F6F1] p-3">
+                <p className="text-[13px] font-bold text-gray-900">
+                  {activeMealSummary.title}
+                </p>
+                <p className="mt-0.5 text-[11px] leading-snug text-gray-500">
+                  {activeMealSummary.subtitle}
+                </p>
+              </div>
 
-                  <div className="mt-4 rounded-[16px] bg-[#F7F6F1] p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                      Heute mitdenken
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {plan.week.microRoutine.slice(0, 4).map((item) => (
-                        <span
-                          key={item}
-                          className="rounded-[8px] bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-700 shadow-sm"
-                        >
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                    {externalMealCount > 0 ? (
-                      <p className="mt-3 text-[11px] leading-snug text-[#A36A3B]">
-                        {externalMealCount} externer Slot ist eingeplant. Kohlenhydrate und Fett
-                        enthalten hier Schätzungen aus vergleichbaren Plan-Meals.
-                      </p>
-                    ) : null}
-                  </div>
+              <div className="space-y-2.5">
+                <MealMetricRow
+                  label="Kalorien"
+                  value={activeMealSummary.display.kcal}
+                  progress={getProgressValue(
+                    activeMealSummary.nutrition.kcal,
+                    estimatedTotals.kcal,
+                  )}
+                />
+                <MealMetricRow
+                  label="Kohlenhydrate"
+                  value={activeMealSummary.display.carbs}
+                  progress={getProgressValue(
+                    activeMealSummary.nutrition.carbs,
+                    estimatedTotals.carbs,
+                  )}
+                />
+                <MealMetricRow
+                  label="Eiweiss"
+                  value={activeMealSummary.display.protein}
+                  progress={getProgressValue(
+                    activeMealSummary.nutrition.protein,
+                    day.targets.proteinTarget,
+                  )}
+                />
+                <MealMetricRow
+                  label="Fett"
+                  value={activeMealSummary.display.fat}
+                  progress={getProgressValue(
+                    activeMealSummary.nutrition.fat,
+                    estimatedTotals.fat,
+                  )}
+                />
+              </div>
+
+              {activeMealSummary.note ? (
+                <div className="rounded-[14px] bg-[#F7F6F1] p-3">
+                  <p className="text-[11px] leading-snug text-gray-500">
+                    {activeMealSummary.note}
+                  </p>
                 </div>
-              </section>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </section>
 
-              <section>
-                <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                  Mahlzeiten
-                </h3>
-                <div className="rounded-[18px] border border-[#DADFD8] bg-white p-4 shadow-sm">
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    {mealSummaries.map((meal) => (
-                      <button
-                        key={meal.slotType}
-                        onClick={() => setActiveSlotType(meal.slotType)}
-                        className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
-                          activeSlotType === meal.slotType
-                            ? "border-[#32D6BD] bg-[#F2FFFC] text-gray-900"
-                            : "border-[#DADFD8] bg-white text-gray-500"
-                        }`}
-                      >
-                        {getMealSlotLabel(meal.slotType)}
-                      </button>
-                    ))}
-                  </div>
-
-                  {activeMealSummary ? (
-                    <div className="space-y-3">
-                      <div className="rounded-[14px] bg-[#F7F6F1] p-3">
-                        <p className="text-[13px] font-bold text-gray-900">
-                          {activeMealSummary.title}
-                        </p>
-                        <p className="mt-0.5 text-[11px] leading-snug text-gray-500">
-                          {activeMealSummary.subtitle}
-                        </p>
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <MealMetricRow
-                          label="Kalorien"
-                          value={activeMealSummary.display.kcal}
-                          progress={getProgressValue(
-                            activeMealSummary.nutrition.kcal,
-                            estimatedTotals.kcal,
-                          )}
-                        />
-                        <MealMetricRow
-                          label="Kohlenhydrate"
-                          value={activeMealSummary.display.carbs}
-                          progress={getProgressValue(
-                            activeMealSummary.nutrition.carbs,
-                            estimatedTotals.carbs,
-                          )}
-                        />
-                        <MealMetricRow
-                          label="Eiweiss"
-                          value={activeMealSummary.display.protein}
-                          progress={getProgressValue(
-                            activeMealSummary.nutrition.protein,
-                            day.targets.proteinTarget,
-                          )}
-                        />
-                        <MealMetricRow
-                          label="Fett"
-                          value={activeMealSummary.display.fat}
-                          progress={getProgressValue(
-                            activeMealSummary.nutrition.fat,
-                            estimatedTotals.fat,
-                          )}
-                        />
-                      </div>
-
-                      {activeMealSummary.note ? (
-                        <div className="rounded-[14px] bg-[#F7F6F1] p-3">
-                          <p className="text-[11px] leading-snug text-gray-500">
-                            {activeMealSummary.note}
-                          </p>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              </section>
-
-              <section>
-                <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                  Nährwerte
-                </h3>
-                <div className="rounded-[18px] border border-[#DADFD8] bg-white p-4 shadow-sm">
-                  <div className="rounded-[14px] bg-[#F7F6F1] p-3">
-                    <div className="mb-4 flex items-center gap-3 text-[10px] font-medium text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <span className="h-2.5 w-2.5 rounded-full bg-[#32D6BD]" />
-                        Basis
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="h-2.5 w-2.5 rounded-full bg-[#C8CDD2]" />
-                        Ziel
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      {chartItems.map((item) => (
-                        <MacroComparisonColumn
-                          key={item.label}
-                          label={item.label}
-                          current={item.current}
-                          target={item.target}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                  Details
-                </h3>
-                <div className="space-y-4 rounded-[18px] border border-[#DADFD8] bg-white p-4 shadow-sm">
-                  <div className="space-y-3">
-                    {detailGroups.map((group) => (
-                      <div
-                        key={group.title ?? "overview"}
-                        className="rounded-[14px] bg-[#F7F6F1] p-3"
-                      >
-                        {group.title ? (
-                          <p className="mb-2 text-[11px] font-bold text-gray-900">
-                            {group.title}
-                          </p>
-                        ) : null}
-                        <div className="space-y-2">
-                          {group.items.map((item) => (
-                            <DetailValueRow
-                              key={`${group.title ?? "overview"}-${item.label}`}
-                              label={item.label}
-                              value={item.value}
-                              strong={item.strong}
-                              muted={item.muted}
-                              indent={item.indent}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="border-t border-[#ECEBE6] pt-4">
-                    <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                      Kritische Mikronährstoffe
-                    </p>
-                    <div className="mb-4 flex flex-wrap gap-2">
-                      {plan.criticalNutrientTips.map((tip) => (
-                        <span
-                          key={tip.nutrient}
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                            tip.status === "supplement"
-                              ? "bg-[#F0EBF7] text-[#6A5F8F]"
-                              : tip.status === "attention"
-                                ? "bg-[#F8EEE1] text-[#A36A3B]"
-                                : "bg-[#EAF2E8] text-[#4A634A]"
-                          }`}
-                        >
-                          {tip.nutrient}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="space-y-3">
-                      {plan.criticalNutrientTips.map((tip) => (
-                        <div
-                          key={`${tip.nutrient}-detail`}
-                          className="flex gap-3 rounded-[14px] bg-[#F7F6F1] p-3"
-                        >
-                          <div className="mt-0.5">
-                            {tip.status === "attention" ? (
-                              <AlertTriangle size={16} className="text-[#A36A3B]" />
-                            ) : (
-                              <CircleCheck
-                                size={16}
-                                className={
-                                  tip.status === "supplement"
-                                    ? "text-[#6A5F8F]"
-                                    : "text-[#4A634A]"
-                                }
-                              />
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-bold text-gray-900">
-                              {tip.nutrient}
-                            </p>
-                            <p className="text-[12px] leading-snug text-gray-600">
-                              {tip.action}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </section>
+      <section>
+        <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+          Nährwerte
+        </h3>
+        <div className="rounded-[18px] border border-[#DADFD8] bg-white p-4 shadow-sm">
+          <div className="rounded-[14px] bg-[#F7F6F1] p-3">
+            <div className="mb-4 flex items-center gap-3 text-[10px] font-medium text-gray-500">
+              <span className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#32D6BD]" />
+                Basis
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#C8CDD2]" />
+                Ziel
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              {chartItems.map((item) => (
+                <MacroComparisonColumn
+                  key={item.label}
+                  label={item.label}
+                  current={item.current}
+                  target={item.target}
+                />
+              ))}
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="border-t border-[#EBEAE4] bg-white px-4 pb-8 pt-3">
-            <button
-              onClick={onClose}
-              className="w-full rounded-[12px] bg-[#2F3130] py-3.5 text-[13px] font-bold text-white shadow-sm transition-transform active:scale-95"
-            >
-              Schliessen
-            </button>
+      <section>
+        <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+          Details
+        </h3>
+        <div className="space-y-4 rounded-[18px] border border-[#DADFD8] bg-white p-4 shadow-sm">
+          <div className="space-y-3">
+            {detailGroups.map((group) => (
+              <div
+                key={group.title ?? "overview"}
+                className="rounded-[14px] bg-[#F7F6F1] p-3"
+              >
+                {group.title ? (
+                  <p className="mb-2 text-[11px] font-bold text-gray-900">
+                    {group.title}
+                  </p>
+                ) : null}
+                <div className="space-y-2">
+                  {group.items.map((item) => (
+                    <DetailValueRow
+                      key={`${group.title ?? "overview"}-${item.label}`}
+                      label={item.label}
+                      value={item.value}
+                      strong={item.strong}
+                      muted={item.muted}
+                      indent={item.indent}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+
+          <div className="border-t border-[#ECEBE6] pt-4">
+            <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+              Kritische Mikronährstoffe
+            </p>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {plan.criticalNutrientTips.map((tip) => (
+                <span
+                  key={tip.nutrient}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    tip.status === "supplement"
+                      ? "bg-[#F0EBF7] text-[#6A5F8F]"
+                      : tip.status === "attention"
+                        ? "bg-[#F8EEE1] text-[#A36A3B]"
+                        : "bg-[#EAF2E8] text-[#4A634A]"
+                  }`}
+                >
+                  {tip.nutrient}
+                </span>
+              ))}
+            </div>
+            <div className="space-y-3">
+              {plan.criticalNutrientTips.map((tip) => (
+                <div
+                  key={`${tip.nutrient}-detail`}
+                  className="flex gap-3 rounded-[14px] bg-[#F7F6F1] p-3"
+                >
+                  <div className="mt-0.5">
+                    {tip.status === "attention" ? (
+                      <AlertTriangle size={16} className="text-[#A36A3B]" />
+                    ) : (
+                      <CircleCheck
+                        size={16}
+                        className={
+                          tip.status === "supplement"
+                            ? "text-[#6A5F8F]"
+                            : "text-[#4A634A]"
+                        }
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-bold text-gray-900">
+                      {tip.nutrient}
+                    </p>
+                    <p className="text-[12px] leading-snug text-gray-600">
+                      {tip.action}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    </DetailDrawer>
   );
 }
 
@@ -592,8 +566,8 @@ function DetailValueRow({
           strong
             ? "text-[13px] font-bold text-gray-900"
             : muted
-              ? `${indent ? "pl-4" : ""} text-[12px] font-medium text-gray-500`
-              : "text-[13px] font-medium text-gray-700"
+      ? `${indent ? "pl-4" : ""} text-[12px] font-medium text-gray-500`
+      : "text-[13px] font-medium text-gray-700"
         }`}
       >
         {label}
@@ -603,8 +577,8 @@ function DetailValueRow({
           strong
             ? "text-[13px] font-bold text-gray-700"
             : muted
-              ? "text-[12px] font-medium text-gray-500"
-              : "text-[13px] font-medium text-gray-700"
+      ? "text-[12px] font-medium text-gray-500"
+      : "text-[13px] font-medium text-gray-700"
         }`}
       >
         {value}
