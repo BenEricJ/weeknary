@@ -14,7 +14,7 @@ export function CalendarEmptyState({
   title,
   description,
   createLabel = "Plan erstellen",
-  manualLabel = "Manuell hinzufuegen",
+  manualLabel = "Manuell hinzufügen",
   onCreatePlan,
   onManualAdd,
 }: CalendarEmptyStateProps) {

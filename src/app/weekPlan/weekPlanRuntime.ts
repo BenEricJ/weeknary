@@ -12,6 +12,7 @@ import {
   requireSupabaseClient,
 } from "../supabaseRuntime";
 import { WEEK_PLAN } from "../data/weekPlan";
+import { applyCurrentWeekToDayPlans } from "../currentWeekPlanData";
 import {
   DEMO_WEEK_PLAN_USER_ID,
   legacyWeekPlanToDomain,
@@ -47,7 +48,7 @@ export type ResolvedWeekPlanRuntime =
     };
 
 const weekPlanRepository = new InMemoryWeekPlanRepository([
-  legacyWeekPlanToDomain(WEEK_PLAN),
+  legacyWeekPlanToDomain(applyCurrentWeekToDayPlans(WEEK_PLAN)),
 ]);
 
 export const weekPlanService = new WeekPlanService(weekPlanRepository);
@@ -61,7 +62,9 @@ export const weekPlanRuntime = {
   async ensureDemoSeeded() {
     const active = await weekPlanRepository.getActiveByUser(DEMO_WEEK_PLAN_USER_ID);
     if (!active) {
-      await weekPlanRepository.save(legacyWeekPlanToDomain(WEEK_PLAN));
+      await weekPlanRepository.save(
+        legacyWeekPlanToDomain(applyCurrentWeekToDayPlans(WEEK_PLAN)),
+      );
     }
   },
 };

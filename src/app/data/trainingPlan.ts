@@ -43,7 +43,7 @@ export const TRAINING_PLAN_ROWS: TrainingPlanRow[] = [
     workoutIds: ["endurance", "kraft"],
     kcalZielInklTraining: 2100,
     proteinMindestziel: 115,
-    tageslogik: "Frueher Proteinanker, mittags warm, abends To-go.",
+    tageslogik: "Früher Proteinanker, mittags warm, abends To-go.",
   },
   {
     tag: "DI",
@@ -56,7 +56,7 @@ export const TRAINING_PLAN_ROWS: TrainingPlanRow[] = [
     kcalZielInklTraining: 2150,
     proteinMindestziel: 115,
     tageslogik:
-      "Office-Tag, To-go-Mittag, externes Abendessen proteinbewusst waehlen.",
+      "Office-Tag, To-go-Mittag, externes Abendessen proteinbewusst wählen.",
   },
   {
     tag: "MI",
@@ -68,7 +68,7 @@ export const TRAINING_PLAN_ROWS: TrainingPlanRow[] = [
     workoutIds: ["endurance"],
     kcalZielInklTraining: 1950,
     proteinMindestziel: 110,
-    tageslogik: "Office-Tag, kraeftiges To-go-Mittag, abends extern.",
+    tageslogik: "Office-Tag, kräftiges To-go-Mittag, abends extern.",
   },
   {
     tag: "DO",
@@ -120,7 +120,7 @@ export const TRAINING_PLAN_ROWS: TrainingPlanRow[] = [
     kcalZielInklTraining: 2400,
     proteinMindestziel: 115,
     tageslogik:
-      "Carbs vor und waehrend der Einheit, abends Recovery-Bowl.",
+      "Carbs vor und während der Einheit, abends Recovery-Bowl.",
   },
 ];
 

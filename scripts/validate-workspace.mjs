@@ -20,8 +20,7 @@ const requiredFiles = [
   "src/infrastructure/indexedDb/IndexedDbWeekPlanRepository.ts",
   "scripts/live-validation-config.mjs",
   "scripts/validate-live-trust-prereqs.mjs",
-  "docs/architecture/phase-20-trusted-live-validation-and-weekplan-local-first-hardening.md",
-  "docs/architecture/phase-21-trusted-live-validation-enablement-and-secret-hygiene-completion.md",
+  "docs/architecture/domain-model-v1.md",
 ];
 
 const missing = requiredFiles.filter((path) => !existsSync(path));

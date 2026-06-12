@@ -4,16 +4,21 @@ import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   Apple,
+  CalendarCheck,
   CalendarDays,
   ChevronLeft,
+  Droplet,
   Flame,
   Leaf,
   MoreHorizontal,
-  MoonStar,
+  PackageCheck,
+  ShieldCheck,
   Sparkles,
   Sun,
   Soup,
+  Target,
   UtensilsCrossed,
+  Wheat,
 } from "lucide-react";
 import { NutritionDayDetailDrawer } from "../components/NutritionDayDetailDrawer";
 import { NutritionMealDetailDrawer } from "../components/NutritionMealDetailDrawer";
@@ -22,8 +27,15 @@ import { UserProfileDrawer } from "../components/UserProfileDrawer";
 import { CalendarEmptyState } from "../components/CalendarEmptyState";
 import {
   WeekCalendar,
-  type WeekCalendarSelectionMode,
+  type DayInfo,
 } from "../components/WeekCalendar";
+import {
+  CompactNoticeList,
+  CompactNoticeRow,
+  OverviewSectionHeader,
+  WeeklyMetricStrip,
+  type WeeklyMetricItem,
+} from "../components/overview/OverviewWidgets";
 import {
   Drawer,
   DrawerContent,
@@ -35,25 +47,24 @@ import {
   getDayByDate,
   getExternalMealCount,
   getMealById,
-  getMealSlotLabel,
   getPlannedMacrosForDay,
   getSelectedDayPrepNotes,
-  getTodayPlanDate,
-  getWeekDays,
   type MealRecipe,
+  type MealSlot,
   type MealSlotType,
+  type NutritionDay,
+  type NutritionPlan,
 } from "../data/nutritionPlan";
 import { useActiveMealPlan } from "../mealPlan/useActiveMealPlan";
 import {
-  getDateInISOWeek,
   getISOWeekDays,
   getISOWeekNumber,
   getISOWeekRange,
   getISOWeekYear,
   getSurroundingWeekOptions,
-  getWeekdayIndex,
 } from "../calendarWeekOptions";
-import { getDateParts, parseIsoDate, toIsoDate } from "../dateDisplay";
+import { formatWeekdayShortLabel, getDateParts, parseIsoDate, toIsoDate } from "../dateDisplay";
+import { usePlanCalendarSelection } from "../planCalendarSelection";
 
 const SLOT_META: Record<
   MealSlotType,
@@ -62,36 +73,41 @@ const SLOT_META: Record<
     iconClassName: string;
     surfaceClassName: string;
     borderClassName: string;
-    badgeClassName: string;
+    labelClassName: string;
+    time: string;
   }
 > = {
   breakfast: {
     icon: Sun,
-    iconClassName: "text-[#A56A2A]",
-    surfaceClassName: "bg-[#F8F1E6]",
-    borderClassName: "border-[#F0E1CB]",
-    badgeClassName: "bg-[#FFF7EC] text-[#A56A2A]",
+    iconClassName: "text-[#C85C19]",
+    surfaceClassName: "bg-[#FFF9F0]",
+    borderClassName: "border-[#F2E3CF]",
+    labelClassName: "text-[#C85C19]",
+    time: "07:30",
   },
   lunch: {
     icon: Soup,
-    iconClassName: "text-[#5A775A]",
-    surfaceClassName: "bg-[#EFF4EC]",
-    borderClassName: "border-[#DDE8D8]",
-    badgeClassName: "bg-[#F5FAF3] text-[#5A775A]",
+    iconClassName: "text-[#C85C19]",
+    surfaceClassName: "bg-white",
+    borderClassName: "border-gray-100",
+    labelClassName: "text-[#C85C19]",
+    time: "12:30",
   },
   dinner: {
-    icon: MoonStar,
-    iconClassName: "text-[#6A5F8F]",
-    surfaceClassName: "bg-[#F0EDF7]",
-    borderClassName: "border-[#E0DAEF]",
-    badgeClassName: "bg-[#F6F4FB] text-[#6A5F8F]",
+    icon: Leaf,
+    iconClassName: "text-[#4A634A]",
+    surfaceClassName: "bg-white",
+    borderClassName: "border-gray-100",
+    labelClassName: "text-[#4A634A]",
+    time: "19:00",
   },
   snack: {
     icon: Apple,
     iconClassName: "text-[#A36A3B]",
-    surfaceClassName: "bg-[#F8F0E7]",
-    borderClassName: "border-[#EEDCCB]",
-    badgeClassName: "bg-[#FDF7F0] text-[#A36A3B]",
+    surfaceClassName: "bg-white",
+    borderClassName: "border-gray-100",
+    labelClassName: "text-[#A36A3B]",
+    time: "16:30",
   },
 };
 
@@ -105,23 +121,43 @@ type TopStatDetails = {
   footer?: string;
 };
 
+type NutritionNotice = {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  iconSurfaceClassName?: string;
+};
+
+type HybridInfoRow = {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  iconSurfaceClassName?: string;
+};
+
 export function NutritionView() {
   const navigate = useNavigate();
   const activeMealPlan = useActiveMealPlan();
   const nutritionPlan = activeMealPlan.legacyPlan;
-  const [selectedDate, setSelectedDate] = useState(() => getTodayPlanDate(nutritionPlan));
-  const currentWeekNumber = useMemo(
-    () => getISOWeekNumber(new Date()),
-    [],
+  const {
+    selectedDate,
+    selectedWeek,
+    selectionMode: calendarMode,
+    setSelectedDate,
+    setSelectedWeek,
+    setSelectionMode: setCalendarMode,
+  } = usePlanCalendarSelection();
+  const currentWeekNumber = useMemo(() => getISOWeekNumber(new Date()), []);
+  const selectedWeekYear = useMemo(
+    () => getISOWeekYear(parseIsoDate(selectedDate)),
+    [selectedDate],
   );
-  const currentWeekYear = useMemo(() => getISOWeekYear(new Date()), []);
-  const [calendarMode, setCalendarMode] =
-    useState<WeekCalendarSelectionMode>("day");
-  const [selectedWeek, setSelectedWeek] =
-    useState(currentWeekNumber);
   const [isDayDetailsOpen, setIsDayDetailsOpen] = useState(false);
-  const [selectedSlotType, setSelectedSlotType] = useState<MealSlotType | null>(null);
-  const [selectedTopStat, setSelectedTopStat] = useState<TopStatDetails | null>(null);
+  const [selectedSlotType, setSelectedSlotType] = useState<MealSlotType | null>(
+    null,
+  );
+  const [selectedTopStat, setSelectedTopStat] =
+    useState<TopStatDetails | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const selectedDay = useMemo(
@@ -131,7 +167,8 @@ export function NutritionView() {
   const selectedSlot = useMemo(
     () =>
       selectedSlotType
-        ? selectedDay.meals.find((meal) => meal.slot === selectedSlotType) ?? null
+        ? selectedDay.meals.find((meal) => meal.slot === selectedSlotType) ??
+          null
         : null,
     [selectedDay, selectedSlotType],
   );
@@ -160,8 +197,8 @@ export function NutritionView() {
     [nutritionPlan, selectedDate],
   );
   const selectedWeekRange = useMemo(
-    () => getISOWeekRange(currentWeekYear, selectedWeek),
-    [currentWeekYear, selectedWeek],
+    () => getISOWeekRange(selectedWeekYear, selectedWeek),
+    [selectedWeekYear, selectedWeek],
   );
   const hasSelectedWeekData = useMemo(
     () =>
@@ -178,22 +215,31 @@ export function NutritionView() {
   );
   const weekDays = useMemo(
     () =>
-      getISOWeekDays(currentWeekYear, selectedWeek).map((day) => ({
+      getISOWeekDays(selectedWeekYear, selectedWeek).map((day) => ({
         ...day,
         hasData: nutritionDateSet.has(day.date),
       })),
-    [currentWeekYear, nutritionDateSet, selectedWeek],
+    [nutritionDateSet, selectedWeek, selectedWeekYear],
+  );
+  const selectedWeekDays = useMemo(
+    () =>
+      weekDays.map((day) => ({
+        dayInfo: day,
+        nutritionDay:
+          nutritionPlan.days.find(
+            (nutritionDay) => nutritionDay.isoDate === day.date,
+          ) ?? null,
+      })),
+    [nutritionPlan, weekDays],
   );
   const currentDate = useMemo(() => {
     const today = toIsoDate(new Date());
-    return weekDays.some((day) => day.date === today)
-      ? today
-      : undefined;
+    return weekDays.some((day) => day.date === today) ? today : undefined;
   }, [weekDays]);
   const weekOptions = useMemo(
     () =>
       getSurroundingWeekOptions(selectedWeek).map((week) => {
-        const range = getISOWeekRange(currentWeekYear, week.weekNumber);
+        const range = getISOWeekRange(selectedWeekYear, week.weekNumber);
         return {
           ...week,
           hasData: Array.from(nutritionDateSet).some(
@@ -201,7 +247,7 @@ export function NutritionView() {
           ),
         };
       }),
-    [currentWeekYear, nutritionDateSet, selectedWeek],
+    [nutritionDateSet, selectedWeek, selectedWeekYear],
   );
 
   useEffect(() => {
@@ -209,14 +255,6 @@ export function NutritionView() {
     setSelectedSlotType(null);
     setSelectedTopStat(null);
   }, [selectedDate]);
-
-  const handleWeekChange = (weekNumber: number) => {
-    const weekdayIndex = getWeekdayIndex(parseIsoDate(selectedDate));
-    setSelectedWeek(weekNumber);
-    setSelectedDate(
-      getDateInISOWeek(currentWeekYear, weekNumber, weekdayIndex),
-    );
-  };
 
   const createPlanForSelection = () => {
     const range =
@@ -234,7 +272,7 @@ export function NutritionView() {
     () =>
       MEAL_SLOT_ORDER.map((slotType) =>
         selectedDay.meals.find((meal) => meal.slot === slotType),
-      ).filter(Boolean),
+      ).filter((slot): slot is MealSlot => Boolean(slot)),
     [selectedDay],
   );
   const basisBreakdownLines = useMemo(
@@ -247,23 +285,51 @@ export function NutritionView() {
         }
 
         return [
-          `${getMealSlotLabel(slot.slot)}: ${meal.name} (${meal.nutrition.kcal} kcal, ${meal.nutrition.protein} g Protein)`,
+          `${getDisplayMealSlotLabel(slot.slot)}: ${meal.name} (${meal.nutrition.kcal} kcal, ${meal.nutrition.protein} g Protein)`,
         ];
       }),
     [nutritionPlan, selectedDay],
   );
   const plannedMealCount = Math.max(1, selectedDay.meals.length);
-  const targetKcalPerSlot = Math.round(selectedDay.targets.kcalTarget / plannedMealCount);
-  const targetProteinPerSlot = Math.round(selectedDay.targets.proteinTarget / plannedMealCount);
+  const targetKcalPerSlot = Math.round(
+    selectedDay.targets.kcalTarget / plannedMealCount,
+  );
+  const targetProteinPerSlot = Math.round(
+    selectedDay.targets.proteinTarget / plannedMealCount,
+  );
+  const nutritionNotices = useMemo(
+    () =>
+      buildNutritionNotices({
+        nutritionPlan,
+        selectedDay,
+        plannedMacros,
+        externalMealCount,
+      }),
+    [externalMealCount, nutritionPlan, plannedMacros, selectedDay],
+  );
+  const weeklyMetrics = useMemo(
+    () =>
+      buildWeeklyMetrics({
+        nutritionPlan,
+        selectedWeekRange,
+        openDetails: () => setIsDayDetailsOpen(true),
+      }),
+    [nutritionPlan, selectedWeekRange],
+  );
+  const hybridInfoRows = useMemo(
+    () => buildHybridInfoRows(nutritionPlan, prepNotes),
+    [nutritionPlan, prepNotes],
+  );
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#FAF9F6]">
       <AppTabHeader
         icon={UtensilsCrossed}
+        iconClassName="text-[#C85C19]"
         title="Ernährung"
         subtitle={
           <>
-            {selectedDay.dayLabel}, {selectedDay.date}. {selectedDay.monthLabel}
+            {formatWeekdayShortLabel(selectedDay.dayShort)}, {selectedDay.date}. {selectedDay.monthLabel}
             {" · "}
             {plannedMacros.kcal} kcal geplant
           </>
@@ -271,259 +337,228 @@ export function NutritionView() {
         onProfileClick={() => setIsProfileOpen(true)}
       />
 
-      <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[88px]">
-        <div className="space-y-6">
-          <WeekCalendar
-            days={weekDays}
-            activeDate={selectedDate}
-            onDateChange={setSelectedDate}
-            currentDate={currentDate}
-            weeks={weekOptions}
-            activeWeek={selectedWeek}
-            onWeekChange={handleWeekChange}
-            currentWeek={currentWeekNumber}
-            selectionMode={calendarMode}
-            onSelectionModeChange={setCalendarMode}
-            className="flex items-center justify-between rounded-[16px] border border-gray-100/60 bg-white p-2 shadow-sm"
-          />
+      <div className="hide-scrollbar flex flex-1 flex-col gap-5 overflow-y-auto px-6 pb-[88px] pt-[112px]">
+        <WeekCalendar
+          days={weekDays}
+          activeDate={selectedDate}
+          onDateChange={setSelectedDate}
+          currentDate={currentDate}
+          weeks={weekOptions}
+          activeWeek={selectedWeek}
+          onWeekChange={setSelectedWeek}
+          currentWeek={currentWeekNumber}
+          selectionMode={calendarMode}
+          onSelectionModeChange={setCalendarMode}
+          className="flex items-center justify-between rounded-[16px] border border-gray-100/60 bg-white p-2 shadow-sm"
+        />
 
-          {(calendarMode === "week" ? hasSelectedWeekData : hasSelectedDayData) ? (
+        {(calendarMode === "week" ? hasSelectedWeekData : hasSelectedDayData) ? (
+          calendarMode === "week" ? (
             <>
-          <section className="rounded-[20px] border border-[#E4E9E4] bg-[#F2F4F2] p-3 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="mb-1.5 flex flex-wrap gap-1.5">
-                  <span className="rounded-full bg-[#E4E9E4] px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#4A634A]">
-                    Proteinfokus
-                  </span>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                      externalMealCount > 0
-                        ? "bg-[#F5EBDD] text-[#A36A3B]"
-                        : "bg-[#E8EFE8] text-[#4A634A]"
-                    }`}
-                  >
-                    {externalMealCount > 0 ? `${externalMealCount} externer Slot offen` : "Voll geplant"}
-                  </span>
+              <section className="flex flex-col gap-3">
+                <div className="px-1">
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Wochenübersicht
+                  </h3>
                 </div>
-                <p className="text-[11px] leading-snug text-gray-800">
-                  {selectedDay.dailyLogic}
-                </p>
-              </div>
-            </div>
+                {selectedWeekDays.map(({ dayInfo, nutritionDay }) => (
+                  <WeeklyNutritionDayCard
+                    key={dayInfo.date}
+                    dayInfo={dayInfo}
+                    nutritionDay={nutritionDay}
+                    nutritionPlan={nutritionPlan}
+                    isActive={dayInfo.date === selectedDate}
+                    onSelect={() => {
+                      setSelectedDate(dayInfo.date);
+                      setCalendarMode("day");
+                    }}
+                  />
+                ))}
+              </section>
 
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <TopStatCard
-                icon={Flame}
-                label="Ziel"
-                value={`${selectedDay.targets.kcalTarget}`}
-                sublabel="kcal"
-                detailTitle="Kalorienziel"
-                detailLines={[
-                  `${selectedDay.training}.`,
-                  selectedDay.dailyLogic,
-                  `Auf vier Slots verteilt sind das grob ${targetKcalPerSlot} kcal pro Meal.`,
-                ]}
-                detailFooter={
-                  externalMealCount > 0
-                    ? `${externalMealCount} externer Slot bleibt dabei bewusst flexibel geplant.`
-                    : "Alle vier Slots sind als fixe Planmeals hinterlegt."
-                }
-                onOpenDetails={setSelectedTopStat}
-              />
-              <TopStatCard
-                icon={Leaf}
-                label="Protein"
-                value={`${selectedDay.targets.proteinTarget}`}
-                sublabel="g Minimum"
-                detailTitle="Proteinminimum"
-                detailLines={[
-                  `Tagesminimum fuer ${selectedDay.dayLabel}: ${selectedDay.targets.proteinTarget} g Protein.`,
-                  `Auf vier Slots verteilt sind das grob ${targetProteinPerSlot} g pro Meal.`,
-                  externalMealCount > 0
-                    ? `${externalMealCount} externer Slot sollte proteinbewusst gewaehlt werden.`
-                    : "Das komplette Proteinminimum wird ueber Planmeals abgebildet.",
-                ]}
-                onOpenDetails={setSelectedTopStat}
-              />
-              <TopStatCard
-                icon={CalendarDays}
-                label="Basis"
-                value={`${plannedMacros.kcal}`}
-                sublabel={`${plannedMacros.protein} g Protein`}
-                detailTitle="Im Basiswert enthalten"
-                detailLines={basisBreakdownLines}
-                detailFooter={
-                  externalMealCount > 0
-                    ? `Externe Meals sind hier nicht eingerechnet. Aktuell offen: ${externalMealCount} Slot.`
-                    : "Die Basis deckt alle Planmeals des Tages ab."
-                }
-                onOpenDetails={setSelectedTopStat}
-              />
-            </div>
-          </section>
-
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                Vier Meals pro Tag
-              </h3>
-              <button
-                onClick={() => setIsDayDetailsOpen(true)}
-                className="text-[11px] font-semibold text-[#4A634A] transition-colors hover:text-[#314631]"
-              >
-                Details
-              </button>
-            </div>
-
-            <div className="flex flex-col items-center gap-3">
-              {orderedMeals.map((slot) => {
-                if (!slot) {
-                  return null;
-                }
-
-                const meal = getMealById(nutritionPlan, slot.mealId);
-                const slotMeta = SLOT_META[slot.slot];
-                const Icon = slotMeta.icon;
-                const subtitle = slot.isExternal
-                  ? "Proteinreich waehlen, Calcium und Jod im Blick behalten."
-                  : getMealSubtitle(meal);
-                const kcalValue = slot.isExternal
-                  ? "650-800"
-                  : `${meal?.nutrition?.kcal ?? "-"}`;
-                const proteinValue = slot.isExternal
-                  ? "25-30 g"
-                  : `${meal?.nutrition?.protein ?? "-"} g`;
-
-                return (
-                  <button
-                    key={`${selectedDay.isoDate}-${slot.slot}`}
-                    onClick={() => setSelectedSlotType(slot.slot)}
-                    className={`w-full max-w-[352px] rounded-[20px] border p-3 text-left shadow-sm transition-colors hover:brightness-[0.99] active:scale-[0.99] ${slotMeta.surfaceClassName} ${slotMeta.borderClassName}`}
-                  >
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 gap-y-2">
-                      <div className="min-w-0 pl-1 pr-1">
-                        <div className="mb-1 flex items-center gap-2">
-                          <Icon size={18} className={slotMeta.iconClassName} strokeWidth={2} />
-                          <h4 className="text-[15px] font-bold leading-tight text-gray-900">
-                            {meal?.name ?? "Extern"}
-                          </h4>
-                        </div>
-                        <p className="text-[11.5px] leading-snug text-gray-700">
-                          {subtitle}
-                        </p>
-                      </div>
-
-                      <div className="row-span-2 flex shrink-0 flex-col gap-1.5">
-                        <div className={`flex items-center justify-center rounded-[10px] px-2 py-1.5 text-[8px] font-bold uppercase tracking-wide ${slotMeta.badgeClassName}`}>
-                          {getMealSlotLabel(slot.slot)}
-                        </div>
-                        <div className={`flex min-w-[66px] items-center justify-center rounded-[10px] border px-1.5 py-1.5 text-center ${slot.isExternal ? 'border-[#EEDCCB] bg-[#F8EEE1]' : 'border-white/70 bg-white/70'}`}>
-                          <span className={`text-[11px] font-bold leading-none ${slot.isExternal ? 'text-[#A36A3B]' : 'text-gray-900'}`}>
-                            {kcalValue}
-                            <span className={`ml-1 text-[8px] font-bold uppercase tracking-wide ${slot.isExternal ? 'text-[#A36A3B]' : 'text-gray-500'}`}>
-                              Kcal
-                            </span>
-                          </span>
-                        </div>
-                        <div className={`flex min-w-[66px] flex-col items-center justify-center rounded-[10px] border px-1.5 py-1.5 text-center ${slot.isExternal ? 'border-[#EEDCCB] bg-[#F8EEE1]' : 'border-white/70 bg-white/70'}`}>
-                          <span className={`text-[11px] font-bold leading-none ${slot.isExternal ? 'text-[#A36A3B]' : 'text-gray-900'}`}>
-                            {proteinValue}
-                            <span className={`ml-1 text-[8px] font-bold uppercase tracking-wide ${slot.isExternal ? 'text-[#A36A3B]' : 'text-gray-500'}`}>
-                              Prot.
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex min-w-0 items-center gap-3 whitespace-nowrap pl-1 text-[11px] font-bold text-gray-800">
-                        <span className="shrink-0 text-gray-600">
-                          {slot.isExternal ? "Ausser Haus" : meal?.cookTime}
-                        </span>
-                        {!slot.isExternal && meal ? (
-                          <>
-                            {meal.tags.slice(0, 2).map((tag, index) => (
-                              <span
-                                key={`${meal.id}-${tag}`}
-                                className={`flex min-w-0 items-center gap-1 ${index === 1 ? "flex-1 truncate" : "shrink-0"}`}
-                              >
-                                <UtensilsCrossed size={12} className="shrink-0 text-gray-500" strokeWidth={2.5} />
-                                <span className={index === 1 ? "truncate" : undefined}>{tag}</span>
-                              </span>
-                            ))}
-                          </>
-                        ) : (
-                          <span className="flex min-w-0 items-center gap-1 truncate text-[#A36A3B]">
-                            <AlertTriangle size={12} className="shrink-0 text-[#A36A3B]" strokeWidth={2.5} />
-                            Guidance statt Fixwert
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section>
-            <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-              Meal-Prep & Reste
-            </h3>
-            <div className="rounded-[18px] border border-gray-100 bg-white p-4 shadow-sm">
-              {prepNotes.length > 0 ? (
-                <div className="space-y-2.5">
-                  {prepNotes.map((note) => (
-                    <div
-                      key={`${selectedDay.isoDate}-${note.title}`}
-                      className="rounded-[16px] bg-[#F7F6F1] p-3"
-                    >
-                      <p className="text-[13px] font-bold text-gray-900">{note.title}</p>
-                      <p className="mt-1 text-[12px] leading-snug text-gray-600">{note.subtitle}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[13px] leading-snug text-gray-600">
-                  Fuer diesen Tag ist kein spezieller Batch- oder Restelogik-Hinweis hinterlegt.
-                </p>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-[18px] border border-[#E8E6DD] bg-[#F4F2EC] p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-white/80">
-                <Sparkles size={18} className="text-[#4A634A]" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[13px] font-bold text-gray-900">Wocheninfo</p>
-                <p className="mt-1 text-[12px] leading-snug text-gray-600">
-                  {nutritionPlan.week.planLabel}
-                </p>
-                <p className="mt-2 text-[12px] font-medium text-gray-700">
-                  Budget: {formatEuro(nutritionPlan.budget.totalCost)} / {formatEuro(nutritionPlan.budget.budgetHardCap)} EUR
-                </p>
-                <p className="mt-1 text-[11px] leading-snug text-gray-500">
-                  {nutritionPlan.budget.status} {nutritionPlan.budget.note}
-                </p>
-              </div>
-            </div>
-          </section>
+              <section>
+                <OverviewSectionHeader title="Diese Woche" />
+                <WeeklyMetricStrip metrics={weeklyMetrics} />
+              </section>
             </>
           ) : (
-            <CalendarEmptyState
-              title={
-                calendarMode === "week"
-                  ? `Keine Ernaehrungsdaten fuer KW ${selectedWeek}`
-                  : `Keine Ernaehrungsdaten fuer ${selectedDateParts.dayLabel}, ${selectedDateParts.date}. ${selectedDateParts.monthLabel}`
-              }
-              description="Fuer diesen Zeitraum liegt im aktiven MealPlan noch kein Eintrag vor."
-              onCreatePlan={createPlanForSelection}
-              onManualAdd={goToPlanningProfile}
-            />
-          )}
-        </div>
+            <>
+            <section
+              className="flex flex-col rounded-[20px] border border-[#F0E1CB] bg-[#FFF8F1] p-4 shadow-sm"
+              style={{ height: 174, minHeight: 174 }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                    <Target size={20} className="text-[#C85C19]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#C85C19]">
+                      Ernährungsziel
+                    </p>
+                    <h2 className="mt-1 text-[16px] font-bold leading-tight text-gray-900">
+                      Tagesziel im Blick
+                    </h2>
+                    <p className="mt-1 line-clamp-2 text-[11px] font-medium leading-tight text-gray-600">
+                      Ernähre dich ausgewogen und treffe deine Makro-Ziele.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDayDetailsOpen(true)}
+                  aria-label="Tagesdetails öffnen"
+                  className="rounded-full p-1.5 text-gray-500 transition-colors hover:bg-white hover:text-gray-700"
+                >
+                  <MoreHorizontal size={20} />
+                </button>
+              </div>
+
+              <div className="mt-auto grid grid-cols-3 gap-2">
+                <TopStatCard
+                  icon={Flame}
+                  label="Kalorien"
+                  value={`${selectedDay.targets.kcalTarget}`}
+                  sublabel="kcal"
+                  progress={getProgressPercent(
+                    plannedMacros.kcal,
+                    selectedDay.targets.kcalTarget,
+                  )}
+                  detailTitle="Kalorienziel"
+                  detailLines={[
+                    `${selectedDay.training}.`,
+                    selectedDay.dailyLogic,
+                    `Auf ${plannedMealCount} Slots verteilt sind das grob ${targetKcalPerSlot} kcal pro Meal.`,
+                  ]}
+                  detailFooter={
+                    externalMealCount > 0
+                      ? `${externalMealCount} externer Slot bleibt bewusst flexibel geplant.`
+                      : "Alle Slots sind als fixe Planmeals hinterlegt."
+                  }
+                  onOpenDetails={setSelectedTopStat}
+                />
+                <TopStatCard
+                  icon={Leaf}
+                  label="Protein"
+                  value={`${selectedDay.targets.proteinTarget}`}
+                  sublabel="g Minimum"
+                  progress={getProgressPercent(
+                    plannedMacros.protein,
+                    selectedDay.targets.proteinTarget,
+                  )}
+                  detailTitle="Proteinminimum"
+                  detailLines={[
+                    `Tagesminimum für ${selectedDay.dayLabel}: ${selectedDay.targets.proteinTarget} g Protein.`,
+                    `Auf ${plannedMealCount} Slots verteilt sind das grob ${targetProteinPerSlot} g pro Meal.`,
+                    externalMealCount > 0
+                      ? `${externalMealCount} externer Slot sollte proteinbewusst gewählt werden.`
+                      : "Das komplette Proteinminimum wird über Planmeals abgebildet.",
+                  ]}
+                  onOpenDetails={setSelectedTopStat}
+                />
+                <TopStatCard
+                  icon={CalendarDays}
+                  label="Basis"
+                  value={`${plannedMacros.kcal}`}
+                  sublabel={`${plannedMacros.protein} g Protein`}
+                  progress={getProgressPercent(
+                    plannedMacros.kcal,
+                    selectedDay.targets.kcalTarget,
+                  )}
+                  detailTitle="Im Basiswert enthalten"
+                  detailLines={
+                    basisBreakdownLines.length
+                      ? basisBreakdownLines
+                      : ["Für diesen Tag sind nur flexible oder externe Slots geplant."]
+                  }
+                  detailFooter={
+                    externalMealCount > 0
+                      ? `Externe Meals sind hier nicht eingerechnet. Aktuell offen: ${externalMealCount} Slot.`
+                      : "Die Basis deckt alle Planmeals des Tages ab."
+                  }
+                  onOpenDetails={setSelectedTopStat}
+                />
+              </div>
+            </section>
+
+            <section>
+              <OverviewSectionHeader
+                title="Heute geplant"
+                rightLabel="Details"
+                onRightClick={() => setIsDayDetailsOpen(true)}
+              />
+              <div className="flex flex-col gap-2">
+                {orderedMeals.map((slot) => (
+                  <MealPlanRow
+                    key={`${selectedDay.isoDate}-${slot.slot}`}
+                    slot={slot}
+                    meal={getMealById(nutritionPlan, slot.mealId)}
+                    externalKcalRange={nutritionPlan.externalMealGuidance.kcalRange}
+                    externalProteinRange={
+                      nutritionPlan.externalMealGuidance.proteinRange
+                    }
+                    onClick={() => setSelectedSlotType(slot.slot)}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <OverviewSectionHeader title="Heute beachten" />
+              <CompactNoticeList>
+                {nutritionNotices.map((notice, index) => (
+                  <React.Fragment key={notice.title}>
+                    {index > 0 ? <div className="mx-3 h-px bg-gray-100" /> : null}
+                    <CompactNoticeRow
+                      icon={notice.icon}
+                      title={notice.title}
+                      description={notice.description}
+                      iconSurfaceClassName={notice.iconSurfaceClassName}
+                    />
+                  </React.Fragment>
+                ))}
+              </CompactNoticeList>
+            </section>
+
+            {hybridInfoRows.length > 0 ? (
+              <section>
+                <OverviewSectionHeader title="Meal-Prep & Budget" />
+                <CompactNoticeList>
+                  {hybridInfoRows.map((row, index) => (
+                    <React.Fragment key={row.title}>
+                      {index > 0 ? (
+                        <div className="mx-3 h-px bg-gray-100" />
+                      ) : null}
+                      <CompactNoticeRow
+                        icon={row.icon}
+                        title={row.title}
+                        description={row.description}
+                        iconSurfaceClassName={row.iconSurfaceClassName}
+                      />
+                    </React.Fragment>
+                  ))}
+                </CompactNoticeList>
+              </section>
+            ) : null}
+
+            <section>
+              <OverviewSectionHeader title="Diese Woche" />
+              <WeeklyMetricStrip metrics={weeklyMetrics} />
+            </section>
+            </>
+          )
+        ) : (
+          <CalendarEmptyState
+            title={
+              calendarMode === "week"
+                ? `Keine Ernährungsdaten für KW ${selectedWeek}`
+                : `Keine Ernährungsdaten für ${selectedDateParts.dayLabel}, ${selectedDateParts.date}. ${selectedDateParts.monthLabel}`
+            }
+            description="Für diesen Zeitraum liegt im aktiven MealPlan noch kein Eintrag vor."
+            onCreatePlan={createPlanForSelection}
+            onManualAdd={goToPlanningProfile}
+          />
+        )}
       </div>
 
       <NutritionMealDetailDrawer
@@ -544,10 +579,7 @@ export function NutritionView() {
         stat={selectedTopStat}
         onClose={() => setSelectedTopStat(null)}
       />
-      <UserProfileDrawer
-        isOpen={isProfileOpen}
-        onClose={setIsProfileOpen}
-      />
+      <UserProfileDrawer isOpen={isProfileOpen} onClose={setIsProfileOpen} />
     </div>
   );
 }
@@ -557,6 +589,7 @@ function TopStatCard({
   label,
   value,
   sublabel,
+  progress,
   detailTitle,
   detailLines,
   detailFooter,
@@ -566,6 +599,7 @@ function TopStatCard({
   label: string;
   value: string;
   sublabel: string;
+  progress: number;
   detailTitle?: string;
   detailLines?: string[];
   detailFooter?: string;
@@ -589,18 +623,211 @@ function TopStatCard({
           footer: detailFooter,
         });
       }}
-      className="w-full rounded-[14px] border border-white/70 bg-white/70 px-2.5 py-2 text-left transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6A816A]/35 active:scale-[0.99]"
+      className="h-[58px] w-full rounded-[14px] border border-white/80 bg-white/85 px-2 py-1.5 text-left shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C85C19]/30 active:scale-[0.99]"
       aria-label={`${label}: ${value} ${sublabel}`}
     >
-      <div className="mb-1 flex items-center justify-between gap-2 text-gray-500">
-        <div className="flex items-center gap-1.5">
-          <Icon size={12} />
-          <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
+      <div className="mb-1 flex items-center justify-between gap-1.5 text-gray-500">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Icon size={10} className="shrink-0 text-[#C85C19]" />
+          <span className="truncate text-[8px] font-bold uppercase tracking-wide">
+            {label}
+          </span>
         </div>
-        <MoreHorizontal size={12} className="shrink-0 text-gray-400" />
+        <MoreHorizontal size={10} className="shrink-0 text-gray-400" />
       </div>
-      <p className="text-[15px] font-bold leading-none text-gray-900">{value}</p>
-      <p className="mt-0.5 text-[9px] font-medium leading-tight text-gray-500">{sublabel}</p>
+      <p className="text-[15px] font-bold leading-none text-gray-900">
+        {value}
+      </p>
+      <p className="mt-0.5 truncate text-[8px] font-medium leading-tight text-gray-500">
+        {sublabel}
+      </p>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#F0E4DA] shadow-inner">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-[#FF8A2A] to-[#FF4D00] shadow-[0_0_6px_rgba(255,90,0,0.28)] transition-[width] duration-500 ease-out"
+          style={{
+            width: `${progress}%`,
+            minWidth: progress > 0 ? 6 : 0,
+          }}
+        />
+      </div>
+    </button>
+  );
+}
+
+function WeeklyNutritionDayCard({
+  dayInfo,
+  nutritionDay,
+  nutritionPlan,
+  isActive,
+  onSelect,
+}: {
+  dayInfo: DayInfo<string>;
+  nutritionDay: NutritionDay | null;
+  nutritionPlan: NutritionPlan;
+  isActive: boolean;
+  onSelect: () => void;
+}) {
+  const macros = nutritionDay
+    ? getPlannedMacrosForDay(nutritionPlan, nutritionDay)
+    : null;
+  const firstSlot = nutritionDay?.meals[0] ?? null;
+  const firstMeal = firstSlot
+    ? getMealById(nutritionPlan, firstSlot.mealId)
+    : null;
+  const mealCount = nutritionDay?.meals.length ?? 0;
+  const previewMeals =
+    nutritionDay?.meals.slice(0, 2).map((slot) => {
+      const meal = getMealById(nutritionPlan, slot.mealId);
+      return meal?.name ?? "Externes Meal";
+    }) ?? [];
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`w-full rounded-[14px] border px-3 py-2 text-left shadow-sm transition-colors active:scale-[0.99] ${
+        isActive
+          ? "border-[#F0D8BD] bg-[#FFF8F1]"
+          : "border-gray-100 bg-white hover:bg-gray-50"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[13px] font-bold text-gray-900">
+            {dayInfo.day}
+          </p>
+          <p className="text-[11px] text-gray-500">
+            {dayInfo.displayDate ?? dayInfo.date}
+          </p>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-bold leading-tight text-gray-900">
+            {firstMeal?.name ?? (nutritionDay ? "Flexibler Ernährungstag" : "Kein MealPlan")}
+          </p>
+          <p className="mt-0.5 truncate text-[11px] leading-tight text-gray-500">
+            {previewMeals.length > 0
+              ? previewMeals.join(" · ")
+              : "Für diesen Tag liegt kein Eintrag vor."}
+          </p>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <p className="text-[12px] font-bold text-gray-900">
+            {mealCount} {mealCount === 1 ? "Meal" : "Meals"}
+          </p>
+          <p className="mt-0.5 text-[10px] font-semibold text-[#C85C19]">
+            {macros ? `${macros.kcal} kcal` : "Offen"}
+          </p>
+        </div>
+      </div>
+
+      {macros ? (
+        <div className="mt-2 flex items-center gap-2 text-[10px] font-bold text-gray-600">
+          <span className="rounded-md bg-[#FFF3E6] px-2 py-0.5 text-[#C85C19]">
+            {macros.protein} g Protein
+          </span>
+          {nutritionDay?.targets.kcalTarget ? (
+            <span className="rounded-md bg-gray-100 px-2 py-0.5 text-gray-600">
+              Ziel {nutritionDay.targets.kcalTarget} kcal
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </button>
+  );
+}
+
+function MealPlanRow({
+  slot,
+  meal,
+  externalKcalRange,
+  externalProteinRange,
+  onClick,
+}: {
+  slot: MealSlot;
+  meal: MealRecipe | null;
+  externalKcalRange: string;
+  externalProteinRange: string;
+  onClick: () => void;
+}) {
+  const slotMeta = SLOT_META[slot.slot];
+  const Icon = slotMeta.icon;
+  const title = meal?.name ?? "Externes Meal";
+  const subtitle = slot.isExternal
+    ? "Proteinreich wählen, Calcium und Jod im Blick behalten."
+    : getMealSubtitle(meal);
+  const kcalValue = slot.isExternal
+    ? stripUnit(externalKcalRange, "kcal")
+    : `${meal?.nutrition?.kcal ?? "-"}`;
+  const proteinValue = slot.isExternal
+    ? stripProteinLabel(externalProteinRange)
+    : `${meal?.nutrition?.protein ?? "-"} g`;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-h-[84px] w-full rounded-[16px] border p-2.5 text-left shadow-sm transition-colors hover:brightness-[0.99] active:scale-[0.99] ${slotMeta.surfaceClassName} ${slotMeta.borderClassName}`}
+    >
+      <div className="grid h-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/80">
+          <Icon size={18} className={slotMeta.iconClassName} />
+        </div>
+
+        <div className="min-w-0">
+          <h4 className="line-clamp-2 text-[13.5px] font-bold leading-tight text-gray-900">
+            {title}
+          </h4>
+          <p className="mt-1 truncate text-[11px] font-medium leading-tight text-gray-500">
+            {subtitle}
+          </p>
+          <div className="mt-1.5 flex min-w-0 items-center gap-2 text-[10px] font-bold text-gray-600">
+            <span className="shrink-0">{meal?.cookTime ?? "Flexibel"}</span>
+            {slot.isExternal ? (
+              <span className="flex min-w-0 items-center gap-1 truncate text-[#A36A3B]">
+                <AlertTriangle size={11} className="shrink-0" />
+                Guidance
+              </span>
+            ) : (
+              meal?.tags.slice(0, 1).map((tag) => (
+                <span
+                  key={`${meal.id}-${tag}`}
+                  className="flex min-w-0 items-center gap-1 truncate"
+                >
+                  <UtensilsCrossed size={11} className="shrink-0 text-gray-400" />
+                  <span className="truncate">{tag}</span>
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <div className="text-right">
+            <p className="text-[11px] font-bold leading-tight text-gray-600">
+              {slotMeta.time}
+            </p>
+            <p
+              className={`text-[10px] font-bold leading-tight ${slotMeta.labelClassName}`}
+            >
+              {getDisplayMealSlotLabel(slot.slot)}
+            </p>
+          </div>
+          <div className="rounded-[10px] border border-gray-100 bg-white px-2 py-1 text-[11px] font-bold leading-none text-gray-900 shadow-sm">
+            {kcalValue}
+            <span className="ml-1 text-[8px] uppercase tracking-wide text-gray-500">
+              kcal
+            </span>
+          </div>
+          <div className="rounded-[10px] border border-gray-100 bg-white px-2 py-1 text-[11px] font-bold leading-none text-gray-900 shadow-sm">
+            {proteinValue}
+            <span className="ml-1 text-[8px] uppercase tracking-wide text-gray-500">
+              prot.
+            </span>
+          </div>
+        </div>
+      </div>
     </button>
   );
 }
@@ -621,7 +848,7 @@ function TopStatDetailDrawer({
           {stat ? `${stat.label} Details` : "KPI Details"}
         </DrawerTitle>
         <DrawerDescription className="sr-only">
-          Detailerklaerung zur ausgewaehlten Kennzahl.
+          Detailerklärung zur ausgewählten Kennzahl.
         </DrawerDescription>
 
         {stat ? (
@@ -629,10 +856,10 @@ function TopStatDetailDrawer({
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-white shadow-sm">
-                  {Icon ? <Icon size={18} className="text-[#4A634A]" /> : null}
+                  {Icon ? <Icon size={18} className="text-[#C85C19]" /> : null}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#6A816A]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#C85C19]">
                     {stat.label}
                   </p>
                   <p className="mt-1 text-[18px] font-bold leading-tight text-gray-900">
@@ -647,7 +874,7 @@ function TopStatDetailDrawer({
                 type="button"
                 onClick={onClose}
                 className="rounded-full p-2 text-gray-500 transition-colors hover:bg-white hover:text-gray-700"
-                aria-label="Details schliessen"
+                aria-label="Details schließen"
               >
                 <ChevronLeft size={18} className="rotate-[-90deg]" />
               </button>
@@ -655,15 +882,22 @@ function TopStatDetailDrawer({
 
             <div className="mt-4 space-y-2.5">
               {stat.lines.map((line) => (
-                <div key={line} className="rounded-[16px] bg-white px-3 py-2.5 shadow-sm">
-                  <p className="text-[12px] leading-snug text-gray-700">{line}</p>
+                <div
+                  key={line}
+                  className="rounded-[16px] bg-white px-3 py-2.5 shadow-sm"
+                >
+                  <p className="text-[12px] leading-snug text-gray-700">
+                    {line}
+                  </p>
                 </div>
               ))}
             </div>
 
             {stat.footer ? (
-              <div className="mt-4 rounded-[16px] border border-[#E4E9E4] bg-[#EDF2EC] px-3 py-3">
-                <p className="text-[11px] leading-snug text-[#4A634A]">{stat.footer}</p>
+              <div className="mt-4 rounded-[16px] border border-[#F0E1CB] bg-[#FFF8F1] px-3 py-3">
+                <p className="text-[11px] leading-snug text-[#9F4512]">
+                  {stat.footer}
+                </p>
               </div>
             ) : null}
           </div>
@@ -671,6 +905,185 @@ function TopStatDetailDrawer({
       </DrawerContent>
     </Drawer>
   );
+}
+
+function buildNutritionNotices({
+  nutritionPlan,
+  selectedDay,
+  plannedMacros,
+  externalMealCount,
+}: {
+  nutritionPlan: NutritionPlan;
+  selectedDay: NutritionDay;
+  plannedMacros: { kcal: number; protein: number; carbs: number; fat: number };
+  externalMealCount: number;
+}): NutritionNotice[] {
+  const notices: NutritionNotice[] = [];
+
+  if (externalMealCount > 0) {
+    notices.push({
+      icon: <AlertTriangle size={18} className="text-[#C85C19]" />,
+      title: "Externes Meal offen",
+      description: `${externalMealCount} Slot proteinbewusst wählen.`,
+      iconSurfaceClassName: "bg-[#FFF3E6]",
+    });
+  }
+
+  if (
+    selectedDay.targets.proteinTarget > 0 &&
+    plannedMacros.protein < selectedDay.targets.proteinTarget
+  ) {
+    notices.push({
+      icon: <Leaf size={18} className="text-[#4A634A]" />,
+      title: "Protein nachziehen",
+      description: `Noch ${selectedDay.targets.proteinTarget - plannedMacros.protein} g bis zum Tagesziel.`,
+      iconSurfaceClassName: "bg-[#EEF5EC]",
+    });
+  } else {
+    notices.push({
+      icon: <Leaf size={18} className="text-[#4A634A]" />,
+      title: "Protein über den Tag verteilen",
+      description: "Sehr gut so, weiterhin konstant bleiben.",
+      iconSurfaceClassName: "bg-[#EEF5EC]",
+    });
+  }
+
+  const criticalTip =
+    nutritionPlan.criticalNutrientTips.find(
+      (tip) => tip.status === "attention" || tip.status === "supplement",
+    ) ?? nutritionPlan.criticalNutrientTips[0];
+
+  if (criticalTip) {
+    notices.push({
+      icon: <Wheat size={18} className="text-[#C85C19]" />,
+      title: `${criticalTip.nutrient} beachten`,
+      description: criticalTip.action,
+      iconSurfaceClassName: "bg-[#FFF3E6]",
+    });
+  } else {
+    notices.push({
+      icon: <Droplet size={18} className="text-[#789A5A]" />,
+      title: "Ausreichend trinken",
+      description: "Noch 2-3 Gläser bis zum Ziel.",
+      iconSurfaceClassName: "bg-[#EEF5EC]",
+    });
+  }
+
+  return notices.slice(0, 3);
+}
+
+function buildWeeklyMetrics({
+  nutritionPlan,
+  selectedWeekRange,
+  openDetails,
+}: {
+  nutritionPlan: NutritionPlan;
+  selectedWeekRange: { startDate: string; endDate: string };
+  openDetails: () => void;
+}): WeeklyMetricItem[] {
+  const weekNutritionDays = nutritionPlan.days.filter(
+    (day) =>
+      day.isoDate >= selectedWeekRange.startDate &&
+      day.isoDate <= selectedWeekRange.endDate,
+  );
+  const weekDayTarget = 7;
+  const calorieDaysOnTarget = weekNutritionDays.filter((day) => {
+    const macros = getPlannedMacrosForDay(nutritionPlan, day);
+    if (day.targets.kcalTarget <= 0) {
+      return macros.kcal > 0;
+    }
+
+    const lowerBound = day.targets.kcalTarget * 0.9;
+    const upperBound = day.targets.kcalTarget * 1.1;
+    return macros.kcal >= lowerBound && macros.kcal <= upperBound;
+  }).length;
+  const proteinDaysOnTarget = weekNutritionDays.filter((day) => {
+    const macros = getPlannedMacrosForDay(nutritionPlan, day);
+    return macros.protein >= day.targets.proteinTarget;
+  }).length;
+  const expectedMealSlots = weekDayTarget * MEAL_SLOT_ORDER.length;
+  const plannedMealSlots = weekNutritionDays.reduce(
+    (sum, day) => sum + day.meals.length,
+    0,
+  );
+  const planPercent =
+    expectedMealSlots > 0
+      ? Math.round((plannedMealSlots / expectedMealSlots) * 100)
+      : 0;
+
+  return [
+    {
+      icon: <Flame size={12} className="shrink-0 text-[#C85C19]" />,
+      label: "Kalorien",
+      value: `${calorieDaysOnTarget} / ${weekDayTarget} Tage`,
+      progress: (calorieDaysOnTarget / weekDayTarget) * 100,
+      accentClassName: "bg-[#FF5A00]",
+      trackClassName: "bg-[#F0E4DA]",
+      onClick: openDetails,
+      ariaLabel: "Kalorienwoche öffnen",
+    },
+    {
+      icon: <Sparkles size={12} className="shrink-0 text-[#C85C19]" />,
+      label: "Protein-Ziel",
+      value: `${proteinDaysOnTarget} / ${weekDayTarget} Tage`,
+      progress: (proteinDaysOnTarget / weekDayTarget) * 100,
+      accentClassName: "bg-[#FF5A00]",
+      trackClassName: "bg-[#F0E4DA]",
+      onClick: openDetails,
+      ariaLabel: "Proteinwoche öffnen",
+    },
+    {
+      icon: <ShieldCheck size={12} className="shrink-0 text-[#C85C19]" />,
+      label: "Plan",
+      value: `${Math.min(planPercent, 100)}%`,
+      progress: planPercent,
+      accentClassName: "bg-[#FF5A00]",
+      trackClassName: "bg-[#F0E4DA]",
+      onClick: openDetails,
+      ariaLabel: "Planfortschritt öffnen",
+    },
+  ];
+}
+
+function buildHybridInfoRows(
+  nutritionPlan: NutritionPlan,
+  prepNotes: Array<{ title: string; subtitle: string }>,
+): HybridInfoRow[] {
+  const rows: HybridInfoRow[] = [];
+  const meaningfulPrepNotes = prepNotes.filter(
+    (note) => note.title.trim() || note.subtitle.trim(),
+  );
+  const hasBudget =
+    nutritionPlan.budget.totalCost > 0 || nutritionPlan.budget.budgetHardCap > 0;
+
+  if (meaningfulPrepNotes.length > 0) {
+    rows.push({
+      icon: <PackageCheck size={18} className="text-[#4A634A]" />,
+      title: meaningfulPrepNotes[0].title,
+      description: meaningfulPrepNotes[0].subtitle || "Für heute vormerken.",
+      iconSurfaceClassName: "bg-[#EEF5EC]",
+    });
+  }
+
+  if (hasBudget) {
+    rows.push({
+      icon: <CalendarCheck size={18} className="text-[#C85C19]" />,
+      title: "Budget",
+      description: `${formatEuro(nutritionPlan.budget.totalCost)} / ${formatEuro(
+        nutritionPlan.budget.budgetHardCap,
+      )} EUR · ${nutritionPlan.budget.status}`,
+      iconSurfaceClassName: "bg-[#FFF3E6]",
+    });
+  }
+
+  rows.push({
+    icon: <Sparkles size={18} className="text-[#4A634A]" />,
+    title: "Wocheninfo",
+    description: nutritionPlan.week.planLabel,
+    iconSurfaceClassName: "bg-[#EEF5EC]",
+  });
+
+  return rows;
 }
 
 function getMealSubtitle(meal: MealRecipe | null) {
@@ -684,6 +1097,37 @@ function getMealSubtitle(meal: MealRecipe | null) {
     .join(", ");
 
   return `${ingredientsPreview}${meal.ingredients.length > 3 ? " ..." : ""}`;
+}
+
+function getDisplayMealSlotLabel(slot: MealSlotType) {
+  switch (slot) {
+    case "breakfast":
+      return "Frühstück";
+    case "lunch":
+      return "Mittagessen";
+    case "dinner":
+      return "Abendessen";
+    case "snack":
+      return "Snack";
+    default:
+      return slot;
+  }
+}
+
+function getProgressPercent(current: number, target: number) {
+  if (target <= 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(Math.round((current / target) * 100), 100));
+}
+
+function stripUnit(value: string, unit: string) {
+  return value.replace(new RegExp(`\\s*${unit}\\b`, "i"), "").trim();
+}
+
+function stripProteinLabel(value: string) {
+  return value.replace(/\s*Protein\b/i, "").trim();
 }
 
 function formatEuro(value: number) {

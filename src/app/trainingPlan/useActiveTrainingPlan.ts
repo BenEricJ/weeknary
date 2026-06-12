@@ -3,13 +3,16 @@ import type { AuthCredentials, AuthSession } from "../../application";
 import type { TrainingPlan } from "../../domain";
 import {
   TRAINING_PLAN_ROWS,
-  TRAINING_WEEK_DAYS,
-  getDefaultTrainingDate,
   getTrainingPlanRowByDate,
 } from "../data/trainingPlan";
+import { WORKOUT_DATA } from "../components/WorkoutDetailDrawer";
 import {
   legacyTrainingPlanToDomain,
 } from "./legacyTrainingPlanMapper";
+import {
+  applyCurrentWeekToTrainingPlan,
+  applyCurrentWeekToTrainingRows,
+} from "../currentWeekPlanData";
 import { trainingPlanToDisplay } from "./trainingPlanDisplayAdapter";
 import { trainingPlanRuntime } from "./trainingPlanRuntime";
 import { authProvider } from "../supabaseRuntime";
@@ -50,7 +53,7 @@ export function useActiveTrainingPlan() {
 
       const active =
         await runtime.trainingPlanService.getActiveTrainingPlan(runtime.userId);
-      setPlan(active);
+      setPlan(active ? applyCurrentWeekToTrainingPlan(active) : null);
       setUserId(runtime.userId);
       setUserEmail(runtime.userEmail);
       setStatus(active ? "ready" : "empty");
@@ -109,7 +112,10 @@ export function useActiveTrainingPlan() {
     }
 
     const now = new Date().toISOString();
-    const seed = legacyTrainingPlanToDomain(TRAINING_PLAN_ROWS, runtime.userId);
+    const seed = legacyTrainingPlanToDomain(
+      applyCurrentWeekToTrainingRows(TRAINING_PLAN_ROWS).rows,
+      runtime.userId,
+    );
     await runtime.trainingPlanService.saveTrainingPlan({
       ...seed,
       id: scopedDemoId("training", runtime.userId),
@@ -137,17 +143,25 @@ export function useActiveTrainingPlan() {
     await reload();
   }, [plan, reload, userId]);
 
-  const displayPlan = useMemo(
-    () =>
-      plan
-        ? trainingPlanToDisplay(plan)
-        : {
-            rows: TRAINING_PLAN_ROWS,
-            weekDays: TRAINING_WEEK_DAYS,
-            defaultDate: getDefaultTrainingDate(),
-          },
-    [plan],
-  );
+  const displayPlan = useMemo(() => {
+    const fallback = applyCurrentWeekToTrainingRows(TRAINING_PLAN_ROWS);
+
+    if (!plan) {
+      return fallback;
+    }
+
+    const activeDisplayPlan = trainingPlanToDisplay(plan);
+    const hasTrainingContent = activeDisplayPlan.rows.some(
+      (row) => row.workoutIds.length > 0 || row.recoveryNote,
+    );
+    const hasKnownWorkoutContent = activeDisplayPlan.rows.some((row) =>
+      row.workoutIds.some((workoutId) => workoutId in WORKOUT_DATA),
+    );
+
+    return hasTrainingContent && hasKnownWorkoutContent
+      ? activeDisplayPlan
+      : fallback;
+  }, [plan]);
 
   return {
     status,

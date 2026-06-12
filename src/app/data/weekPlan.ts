@@ -83,7 +83,7 @@ export const CATEGORY_META: Record<
     barClassName: "bg-[#5B88A5]",
   },
   nutrition: {
-    label: "Ernaehrung",
+    label: "Ernährung",
     icon: Apple,
     iconClassName: "text-[#A56A2A]",
     badgeClassName: "bg-[#F8F1E6] text-[#A56A2A]",
@@ -119,7 +119,7 @@ export const CATEGORY_META: Record<
     barClassName: "bg-[#6B7F4B]",
   },
   mobilitaet: {
-    label: "MobilitÃ¤t",
+    label: "Mobilität",
     icon: Route,
     iconClassName: "text-[#3D7C74]",
     badgeClassName: "bg-[#E2F1EE] text-[#3D7C74]",
@@ -164,7 +164,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "mo-1",
         title: "Zwift Grundlage",
-        subtitle: "FrÃ¼he Foundation-Einheit",
+        subtitle: "Frühe Foundation-Einheit",
         start: "06:30",
         end: "07:30",
         category: "training",
@@ -181,7 +181,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "mo-3",
         title: "Krafttraining",
-        subtitle: "Ganzkoerper-Mittagsblock",
+        subtitle: "Ganzkörper-Mittagsblock",
         start: "12:00",
         end: "13:00",
         category: "training",
@@ -197,8 +197,8 @@ export const WEEK_PLAN: DayPlan[] = [
       },
       {
         id: "mo-5",
-        title: "Keymaster RÃ¼ckenwind",
-        subtitle: "LauenstraÃŸe 3, NeukÃ¶lln",
+        title: "Keymaster Rückenwind",
+        subtitle: "Lauenstraße 3, Neukölln",
         start: "15:00",
         end: "20:00",
         category: "ehrenamt",
@@ -207,7 +207,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "mo-6",
         title: "Heimweg",
-        subtitle: "RÃ¼ckfahrt am Abend",
+        subtitle: "Rückfahrt am Abend",
         start: "21:45",
         end: "22:15",
         category: "mobilitaet",
@@ -272,7 +272,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "di-5",
         title: "Kochabend",
-        subtitle: "Libauer StraÃŸe 3, Friedrichshain",
+        subtitle: "Libauer Straße 3, Friedrichshain",
         start: "17:00",
         end: "21:00",
         category: "sozial",
@@ -280,7 +280,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "di-6",
         title: "Heimweg",
-        subtitle: "RÃ¼ckfahrt am Abend",
+        subtitle: "Rückfahrt am Abend",
         start: "21:45",
         end: "22:15",
         category: "mobilitaet",
@@ -319,8 +319,8 @@ export const WEEK_PLAN: DayPlan[] = [
       },
       {
         id: "mi-2",
-        title: "Arbeiten (BÃ¼ro)",
-        subtitle: "Langer BÃ¼ro-Tag",
+        title: "Arbeiten (Büro)",
+        subtitle: "Langer Büro-Tag",
         start: "08:00",
         end: "17:00",
         category: "arbeit",
@@ -380,7 +380,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "do-1",
         title: "Heimweg",
-        subtitle: "FrÃ¼h zurÃ¼ck",
+        subtitle: "Früh zurück",
         start: "07:00",
         end: "08:00",
         category: "mobilitaet",
@@ -396,7 +396,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "do-3",
         title: "Krafttraining",
-        subtitle: "Mittagsblock Ganzkoerper",
+        subtitle: "Mittagsblock Ganzkörper",
         start: "12:00",
         end: "13:00",
         category: "training",
@@ -429,7 +429,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "do-7",
         title: "Heimweg",
-        subtitle: "RÃ¼ckfahrt am Abend",
+        subtitle: "Rückfahrt am Abend",
         start: "21:45",
         end: "22:15",
         category: "mobilitaet",
@@ -482,7 +482,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "fr-3",
         title: "Lauftraining MIT/LOW",
-        subtitle: "Mittagslauf mit flexiblem Intensitaetsfenster",
+        subtitle: "Mittagslauf mit flexiblem Intensitätsfenster",
         start: "12:00",
         end: "13:00",
         category: "training",
@@ -499,7 +499,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "fr-5",
         title: "Einkaufen (LPG)",
-        subtitle: "Einkauf fÃ¼r das Wochenende",
+        subtitle: "Einkauf für das Wochenende",
         start: "17:00",
         end: "18:00",
         category: "orga",
@@ -563,7 +563,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "so-2",
         title: "Long Ride",
-        subtitle: "Laengerer Grundlagenblock am Nachmittag",
+        subtitle: "Längerer Grundlagenblock am Nachmittag",
         start: "17:00",
         end: "20:00",
         category: "training",
@@ -572,7 +572,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "so-3",
         title: "Vorkochen",
-        subtitle: "Vorbereitung fÃ¼r die Woche",
+        subtitle: "Vorbereitung für die Woche",
         start: "20:00",
         end: "22:00",
         category: "orga",
@@ -580,7 +580,7 @@ export const WEEK_PLAN: DayPlan[] = [
       {
         id: "so-4",
         title: "Lesen",
-        subtitle: "SpÃ¤ter Ausklang",
+        subtitle: "Später Ausklang",
         start: "22:15",
         end: "23:00",
         category: "erholung",
@@ -618,6 +618,11 @@ function isTimedEvent(entry: ScheduleEntry): entry is EventItem {
 }
 
 export function getDayDate(day: DayPlan) {
+  if (day.dayKey) {
+    const [year, month, date] = day.dayKey.split("-").map(Number);
+    return new Date(year, month - 1, date);
+  }
+
   return new Date(
     WEEK_YEAR,
     MONTH_INDEX_BY_LABEL[day.monthLabel] ?? 0,
@@ -658,7 +663,7 @@ export function buildEventDetail(day: DayPlan, entry: ScheduleEntry) {
     end: isTimedEvent(entry) ? entry.end : undefined,
     durationLabel: isTimedEvent(entry)
       ? formatMinutes(getDurationMinutes(entry.start, entry.end))
-      : "GanztÃ¤gig",
+      : "Ganztägig",
     allDay: !isTimedEvent(entry),
     subtasks: "subtasks" in entry ? entry.subtasks : undefined,
     canEdit: isTimedEvent(entry),

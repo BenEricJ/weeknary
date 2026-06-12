@@ -6,7 +6,6 @@ import {
   LogOut,
   Moon,
   ShieldCheck,
-  Sparkles,
   User,
   Utensils,
   X,
@@ -26,7 +25,7 @@ const menuItems: Array<{
   path: string;
 }> = [
   { icon: User, label: "Konto", path: "/app/profile?tab=profile" },
-  { icon: Utensils, label: "Ernaehrungsprofil", path: "/app/profile?tab=nutrition" },
+  { icon: Utensils, label: "Ernährungsprofil", path: "/app/profile?tab=nutrition" },
   { icon: Dumbbell, label: "Trainingsprofil", path: "/app/profile?tab=training" },
   { icon: Moon, label: "Schlafziele", path: "/app/profile?tab=planning" },
   { icon: Bell, label: "Benachrichtigungen", path: "/app/profile?tab=planning" },
@@ -103,25 +102,6 @@ export function UserProfileDrawer({ isOpen, onClose }: UserProfileDrawerProps) {
           </button>
 
           <div className="flex-1 overflow-y-auto px-4 pb-4">
-            <button
-              type="button"
-              onClick={() => goTo("/app/create")}
-              className="mb-4 flex min-h-12 w-full items-center gap-3 rounded-[16px] border border-[#E6EBE6] bg-[#F2F4F2] px-3 py-3 text-left"
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-white">
-                <Sparkles size={18} className="text-[#4A634A]" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-bold leading-tight text-gray-900">
-                  Create Hub
-                </p>
-                <p className="mt-0.5 text-[11px] leading-snug text-gray-500">
-                  Neue Plaene erstellen
-                </p>
-              </div>
-              <ChevronRight size={16} className="text-gray-400" />
-            </button>
-
             <div className="grid gap-1">
               {menuItems.map((item) => (
                 <DrawerMenuRow

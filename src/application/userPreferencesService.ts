@@ -44,7 +44,7 @@ export function createDefaultUserPreferences(
     },
     allergies: [],
     excludedIngredients: [],
-    preferredIngredients: ["Tofu", "Linsen", "Haferflocken", "Gemuese"],
+    preferredIngredients: ["Tofu", "Linsen", "Haferflocken", "Gemüse"],
     dailyNutritionTarget: {
       kcal: 2200,
       protein: 140,

@@ -12,10 +12,20 @@ const DAY_LABELS = [
 
 const DAY_SHORT_LABELS = ["SO", "MO", "DI", "MI", "DO", "FR", "SA"] as const;
 
+export function formatWeekdayShortLabel(label: string) {
+  if (label.length <= 1) {
+    return label.toLocaleUpperCase("de-DE");
+  }
+
+  return `${label.slice(0, 1).toLocaleUpperCase("de-DE")}${label
+    .slice(1)
+    .toLocaleLowerCase("de-DE")}`;
+}
+
 const MONTH_LABELS = [
   "Januar",
   "Februar",
-  "Maerz",
+  "März",
   "April",
   "Mai",
   "Juni",

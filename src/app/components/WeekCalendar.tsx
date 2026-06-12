@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { CalendarDays, CalendarRange } from "lucide-react";
+import { formatWeekdayShortLabel } from "../dateDisplay";
 
 export interface DayInfo<TDate extends string | number = number> {
   day: string;
@@ -28,16 +29,23 @@ interface WeekCalendarProps<TDate extends string | number = number> {
   selectionMode?: WeekCalendarSelectionMode;
   onSelectionModeChange?: (mode: WeekCalendarSelectionMode) => void;
   className?: string;
+  activeClassName?: string;
+  activeRingClassName?: string;
+  currentClassName?: string;
+  currentDataClassName?: string;
+  dataClassName?: string;
+  dataLabelClassName?: string;
+  toggleActiveClassName?: string;
 }
 
 const DEFAULT_DAYS: DayInfo[] = [
-  { day: "MO", date: 5 },
-  { day: "DI", date: 6 },
-  { day: "MI", date: 7 },
-  { day: "DO", date: 8 },
-  { day: "FR", date: 9 },
-  { day: "SA", date: 10 },
-  { day: "SO", date: 11 },
+  { day: "Mo", date: 5 },
+  { day: "Di", date: 6 },
+  { day: "Mi", date: 7 },
+  { day: "Do", date: 8 },
+  { day: "Fr", date: 9 },
+  { day: "Sa", date: 10 },
+  { day: "So", date: 11 },
 ];
 
 export function WeekCalendar<TDate extends string | number = number>({
@@ -52,6 +60,13 @@ export function WeekCalendar<TDate extends string | number = number>({
   selectionMode = "day",
   onSelectionModeChange,
   className = "flex justify-between items-center bg-white rounded-[16px] p-2.5 shadow-sm border border-gray-100/50",
+  activeClassName = "bg-[#5E7A5E] text-white",
+  activeRingClassName = "ring-[#B8C9AE]",
+  currentClassName = "bg-[#F6F8F1] text-[#4A634A]",
+  currentDataClassName = "bg-[#EAF2E6] text-[#4A634A]",
+  dataClassName = "bg-[#EAF2E6] text-[#4A634A]",
+  dataLabelClassName = "text-[#4A634A]",
+  toggleActiveClassName = "text-[#5E7A5E]",
 }: WeekCalendarProps<TDate>) {
   const isWeekMode = selectionMode === "week";
   const ToggleIcon = isWeekMode ? CalendarRange : CalendarDays;
@@ -162,7 +177,7 @@ export function WeekCalendar<TDate extends string | number = number>({
                     isActive || isCurrent
                       ? "text-gray-700"
                       : hasData
-                        ? "text-[#4A634A]"
+                        ? dataLabelClassName
                         : "text-gray-400"
                   }`}
                 >
@@ -171,11 +186,11 @@ export function WeekCalendar<TDate extends string | number = number>({
                 <div
                   className={`relative w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
                     isActive
-                      ? `bg-[#5E7A5E] text-white shadow-md ${isCurrent ? "ring-2 ring-[#B8C9AE]" : ""}`
+                      ? `${activeClassName} shadow-md ${isCurrent ? `ring-2 ${activeRingClassName}` : ""}`
                       : isCurrent
-                        ? `${hasData ? "bg-[#EAF2E6]" : "bg-[#F6F8F1]"} text-[#4A634A] ring-2 ring-[#B8C9AE]`
+                        ? `${hasData ? currentDataClassName : currentClassName} ring-2 ${activeRingClassName}`
                         : hasData
-                          ? "bg-[#EAF2E6] text-[#4A634A]"
+                          ? dataClassName
                       : "text-gray-900"
                   }`}
                 >
@@ -199,14 +214,14 @@ export function WeekCalendar<TDate extends string | number = number>({
                     isActive || isCurrent ? "text-gray-700" : "text-gray-400"
                   }`}
                 >
-                  {day.day}
+                  {formatWeekdayShortLabel(day.day)}
                 </span>
                 <div
                   className={`relative w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
                     isActive
-                      ? `bg-[#5E7A5E] text-white shadow-md ${isCurrent ? "ring-2 ring-[#B8C9AE]" : ""}`
+                      ? `${activeClassName} shadow-md ${isCurrent ? `ring-2 ${activeRingClassName}` : ""}`
                       : isCurrent
-                        ? "bg-[#F6F8F1] text-[#4A634A] ring-2 ring-[#B8C9AE]"
+                        ? `${currentClassName} ring-2 ${activeRingClassName}`
                       : "text-gray-900"
                   }`}
                 >
@@ -229,7 +244,7 @@ export function WeekCalendar<TDate extends string | number = number>({
               : "Zur Wochenauswahl wechseln"
           }
           className={`absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-colors ${
-            isWeekMode ? "text-[#5E7A5E]" : "text-gray-500"
+            isWeekMode ? toggleActiveClassName : "text-gray-500"
           }`}
         >
           <ToggleIcon className="h-3 w-3" />

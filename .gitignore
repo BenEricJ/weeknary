@@ -20,5 +20,6 @@ Thumbs.db
 
 # Local artifacts
 Weeknary.zip
+.phase19-vite-cache/
 onedrive_last_version/
 supabase/.temp/

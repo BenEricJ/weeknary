@@ -63,7 +63,7 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
     sport: "Radfahren",
     title: "Zwift Grundlage",
     subtitle: "60 Min • locker aerob",
-    desc: "Ruhige Grundlageneinheit auf Zwift fuer stabile Zone-2-Arbeit.",
+    desc: "Ruhige Grundlageneinheit auf Zwift für stabile Zone-2-Arbeit.",
     image: bikeImg,
     icon: Bike,
     statsBar: [{ icon: Clock, val: "60 Min" }, { icon: Heart, val: "138 bpm" }, { icon: Zap, val: "185 Watt" }, { icon: Info, val: "520 kcal" }],
@@ -75,10 +75,10 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
     ],
     recs: [
       { icon: Apple, title: "Snack", desc: "Optional kleiner Carb-Snack vor dem Start", color: "text-[#3B82F6]" },
-      { icon: Droplet, title: "Hydration", desc: "500-750 ml ueber die Einheit", color: "text-[#3B82F6]" },
+      { icon: Droplet, title: "Hydration", desc: "500-750 ml über die Einheit", color: "text-[#3B82F6]" },
       { icon: RefreshCw, title: "Kadenz", desc: "85-95 U/min konstant", color: "text-[#6A816A]" },
     ],
-    checklist: [{ id: "c1", label: "Zwift-Setup verbunden" }, { id: "c2", label: "Bidon bereitgestellt" }, { id: "c3", label: "Snack geprueft" }],
+    checklist: [{ id: "c1", label: "Zwift-Setup verbunden" }, { id: "c2", label: "Bidon bereitgestellt" }, { id: "c3", label: "Snack geprüft" }],
     tags: ["Zwift", "Grundlage", "Zone 2"],
   },
   "zwift-strength": {
@@ -86,7 +86,7 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
     sport: "Radfahren",
     title: "Zwift Strength",
     subtitle: "90 Min • Kraftausdauer",
-    desc: "Zwift-Einheit mit laengeren Drueckphasen und kontrollierten Erholungen.",
+    desc: "Zwift-Einheit mit längeren Drückphasen und kontrollierten Erholungen.",
     image: bikeImg,
     icon: Bike,
     statsBar: [{ icon: Clock, val: "90 Min" }, { icon: Heart, val: "148 bpm" }, { icon: Zap, val: "225 Watt" }, { icon: Info, val: "780 kcal" }],
@@ -101,7 +101,7 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
       { icon: Apple, title: "Fueling", desc: "30-45 g Carbs pro Stunde", color: "text-[#3B82F6]" },
       { icon: RefreshCw, title: "Tritt", desc: "Kadenz etwas niedriger halten", color: "text-[#6A816A]" },
     ],
-    checklist: [{ id: "zs1", label: "Luefter und Handtuch bereit" }, { id: "zs2", label: "Intervallmodus geprueft" }, { id: "zs3", label: "Trinkflasche gefuellt" }],
+    checklist: [{ id: "zs1", label: "Lüfter und Handtuch bereit" }, { id: "zs2", label: "Intervallmodus geprüft" }, { id: "zs3", label: "Trinkflasche gefüllt" }],
     tags: ["Zwift", "Strength", "Kraftausdauer"],
   },
   "zwift-tempo": {
@@ -121,7 +121,7 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
       { name: "Cool-down", dur: "15 Min", int: "Sehr locker", target: "< Zone 1", color: "bg-[#9CA3AF]" },
     ],
     recs: [
-      { icon: Apple, title: "Carbs", desc: "Vorher und waehrenddessen Carbs priorisieren", color: "text-[#F97316]" },
+      { icon: Apple, title: "Carbs", desc: "Vorher und währenddessen Carbs priorisieren", color: "text-[#F97316]" },
       { icon: Droplet, title: "Hydration", desc: "600-800 ml pro Stunde", color: "text-[#3B82F6]" },
     ],
     checklist: [{ id: "zt1", label: "Pre-Ride Snack eingeplant" }, { id: "zt2", label: "Workout geladen" }, { id: "zt3", label: "Recovery-Drink vorbereitet" }],
@@ -131,31 +131,31 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
     id: "kraft",
     sport: "Krafttraining",
     title: "Krafttraining",
-    subtitle: "60 Min • Ganzkoerper",
-    desc: "Mittagsblock mit Grunduebungen und sauberer Technik.",
+    subtitle: "60 Min • Ganzkörper",
+    desc: "Mittagsblock mit Grundübungen und sauberer Technik.",
     image: gymImg,
     icon: Dumbbell,
     statsBar: [{ icon: Clock, val: "60 Min" }, { icon: Activity, val: "118 bpm" }, { icon: Dumbbell, val: "3.8 t" }, { icon: Info, val: "420 kcal" }],
-    goal: { title: "Stabilitaet und Kraft", intensity: "Mittel", level: 3, loadType: "Volumen", loadVal: "14 Saetze" },
+    goal: { title: "Stabilität und Kraft", intensity: "Mittel", level: 3, loadType: "Volumen", loadVal: "14 Sätze" },
     steps: [
       { name: "Kniebeuge", dur: "4 x 6", int: "Schwer", target: "80 kg", color: "bg-[#5C85A8]" },
-      { name: "Bankdruecken", dur: "4 x 8", int: "Mittel", target: "60 kg", color: "bg-[#5C85A8]", isMain: true },
+      { name: "Bankdrücken", dur: "4 x 8", int: "Mittel", target: "60 kg", color: "bg-[#5C85A8]", isMain: true },
       { name: "Rudern", dur: "3 x 10", int: "Mittel", target: "50 kg", color: "bg-[#5C85A8]" },
       { name: "Rumpfblock", dur: "10 Min", int: "Kontrolle", target: "Core", color: "bg-[#9CA3AF]" },
     ],
     recs: [
       { icon: Target, title: "Fokus", desc: "Saubere Technik vor Zusatzlast", color: "text-[#5C85A8]" },
-      { icon: Droplet, title: "Hydration", desc: "Zwischen Saetzen bewusst trinken", color: "text-[#3B82F6]" },
+      { icon: Droplet, title: "Hydration", desc: "Zwischen Sätzen bewusst trinken", color: "text-[#3B82F6]" },
     ],
-    checklist: [{ id: "k1", label: "Aufwaermen nicht vergessen" }, { id: "k2", label: "Trinkflasche bereit" }, { id: "k3", label: "Kurz ausdehnen" }],
-    tags: ["Kraft", "Ganzkoerper", "Mittagsblock"],
+    checklist: [{ id: "k1", label: "Aufwärmen nicht vergessen" }, { id: "k2", label: "Trinkflasche bereit" }, { id: "k3", label: "Kurz ausdehnen" }],
+    tags: ["Kraft", "Ganzkörper", "Mittagsblock"],
   },
   laufen: {
     id: "laufen",
     sport: "Laufen",
     title: "Lauftraining MIT/LOW",
     subtitle: "60 Min • moderat oder locker",
-    desc: "Mittagslauf mit flexiblem Intensitaetsfenster je nach Tagesform.",
+    desc: "Mittagslauf mit flexiblem Intensitätsfenster je nach Tagesform.",
     image: runImg,
     icon: Activity,
     statsBar: [{ icon: Clock, val: "60 Min" }, { icon: MapIcon, val: "9.5 km" }, { icon: Heart, val: "146 bpm" }, { icon: Info, val: "560 kcal" }],
@@ -166,8 +166,8 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
       { name: "Technikfokus", dur: "5 Min", int: "Locker", target: "Schrittfrequenz", color: "bg-[#F97316]" },
       { name: "Auslaufen", dur: "10 Min", int: "Locker", target: "< 120 bpm", color: "bg-[#3B82F6]" },
     ],
-    recs: [{ icon: Activity, title: "Pacing", desc: "Tempo gleichmaessig halten", color: "text-[#6A816A]" }],
-    checklist: [{ id: "l1", label: "Laufschuhe pruefen" }, { id: "l2", label: "Warm-up Routine" }],
+    recs: [{ icon: Activity, title: "Pacing", desc: "Tempo gleichm??ig halten", color: "text-[#6A816A]" }],
+    checklist: [{ id: "l1", label: "Laufschuhe prüfen" }, { id: "l2", label: "Warm-up Routine" }],
     tags: ["Laufen", "MIT/LOW", "Lunch Run"],
   },
   "long-ride": {
@@ -175,7 +175,7 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
     sport: "Radfahren",
     title: "Long Ride",
     subtitle: "180 Min • langer Grundlagenblock",
-    desc: "Laengere Sonntagsausfahrt mit Fueling-Fokus und gleichmaessigem Druck.",
+    desc: "L?ngere Sonntagsausfahrt mit Fueling-Fokus und gleichm??igem Druck.",
     image: bikeImg,
     icon: Bike,
     statsBar: [{ icon: Clock, val: "180 Min" }, { icon: MapIcon, val: "75 km" }, { icon: Heart, val: "142 bpm" }, { icon: Info, val: "1450 kcal" }],
@@ -187,7 +187,7 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
     ],
     recs: [
       { icon: Apple, title: "Fueling", desc: "60-75 g Carbs pro Stunde", color: "text-[#F97316]" },
-      { icon: Droplet, title: "Hydration", desc: "Mindestens 1 grosse Flasche pro Stunde", color: "text-[#3B82F6]" },
+      { icon: Droplet, title: "Hydration", desc: "Mindestens 1 große Flasche pro Stunde", color: "text-[#3B82F6]" },
       { icon: RefreshCw, title: "Recovery", desc: "Danach Recovery-Bowl oder Shake", color: "text-[#6A816A]" },
     ],
     checklist: [{ id: "lr1", label: "Gels oder Riegel eingepackt" }, { id: "lr2", label: "Route und Wetter gecheckt" }, { id: "lr3", label: "Recovery-Mahlzeit vorbereitet" }],
@@ -198,7 +198,7 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
     sport: "Yoga",
     title: "Yoga Reset",
     subtitle: "30 Min • Regeneration",
-    desc: "Sanfter Yoga-Block fuer Atmung, Beweglichkeit und Parasympathikus.",
+    desc: "Sanfter Yoga-Block für Atmung, Beweglichkeit und Parasympathikus.",
     image: yogaImg,
     icon: Flower,
     statsBar: [{ icon: Clock, val: "30 Min" }, { icon: Heart, val: "92 bpm" }, { icon: Info, val: "110 kcal" }],
@@ -209,8 +209,8 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
       { name: "Haltungen", dur: "7 Min", int: "Dehnung", target: "Halten", color: "bg-[#849C66]" },
       { name: "Entspannung", dur: "3 Min", int: "Ruhe", target: "Reset", color: "bg-[#9CA3AF]" },
     ],
-    recs: [{ icon: Flower, title: "Atmung", desc: "Tief und gleichmaessig atmen", color: "text-[#849C66]" }],
-    checklist: [{ id: "y1", label: "Matte ausrollen" }, { id: "y2", label: "Stoerfaktoren beseitigen" }],
+    recs: [{ icon: Flower, title: "Atmung", desc: "Tief und gleichm??ig atmen", color: "text-[#849C66]" }],
+    checklist: [{ id: "y1", label: "Matte ausrollen" }, { id: "y2", label: "Störfaktoren beseitigen" }],
     tags: ["Yoga", "Recovery", "Reset"],
   },
   "mobility-flow": {
@@ -218,20 +218,20 @@ export const WORKOUT_DATA: Record<string, WorkoutData> = {
     sport: "Mobilität",
     title: "Mobility Flow",
     subtitle: "20 Min • Recovery",
-    desc: "Kurzer Beweglichkeitsblock fuer Huefte, Ruecken und Schultern.",
+    desc: "Kurzer Beweglichkeitsblock für Hüfte, Rücken und Schultern.",
     image: mobilityImg,
     icon: Activity,
     statsBar: [{ icon: Clock, val: "20 Min" }, { icon: Heart, val: "90 bpm" }, { icon: Info, val: "90 kcal" }],
-    goal: { title: "Spannung loesen", intensity: "Leicht", level: 1, loadType: "Fokus", loadVal: "Mobilitaet" },
+    goal: { title: "Spannung lösen", intensity: "Leicht", level: 1, loadType: "Fokus", loadVal: "Mobilität" },
     steps: [
-      { name: "Spine Flow", dur: "5 Min", int: "Mobilisieren", target: "Ruecken", color: "bg-[#849C66]" },
-      { name: "Hip Openers", dur: "8 Min", int: "Flow", target: "Huefte", color: "bg-[#6A816A]", isMain: true },
+      { name: "Spine Flow", dur: "5 Min", int: "Mobilisieren", target: "Rücken", color: "bg-[#849C66]" },
+      { name: "Hip Openers", dur: "8 Min", int: "Flow", target: "Hüfte", color: "bg-[#6A816A]", isMain: true },
       { name: "Shoulder Reset", dur: "4 Min", int: "Locker", target: "Schultern", color: "bg-[#849C66]" },
       { name: "Breathing Reset", dur: "3 Min", int: "Ruhig", target: "Atmung", color: "bg-[#9CA3AF]" },
     ],
     recs: [{ icon: Flower, title: "Recovery", desc: "Nach harten Tagen bewusst ruhig bleiben", color: "text-[#849C66]" }],
     checklist: [{ id: "m1", label: "Matte bereitlegen" }, { id: "m2", label: "Enge Bereiche notieren" }],
-    tags: ["Mobilitaet", "Flow", "Recovery"],
+    tags: ["Mobilität", "Flow", "Recovery"],
   },
 };
 
@@ -241,12 +241,12 @@ interface Props {
 }
 
 export function WorkoutDetailDrawer({ workoutId, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState("Ueberblick");
+  const [activeTab, setActiveTab] = useState("Überblick");
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!workoutId) return;
-    setActiveTab("Ueberblick");
+    setActiveTab("Überblick");
     setCheckedItems({});
   }, [workoutId]);
 
@@ -263,7 +263,7 @@ export function WorkoutDetailDrawer({ workoutId, onClose }: Props) {
         <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 mx-auto flex h-[95vh] max-w-[390px] flex-col overflow-hidden rounded-t-[24px] bg-[#F5F4EF] outline-none">
           <div className="flex items-center justify-between bg-white px-4 py-3">
             <Drawer.Close asChild>
-              <button aria-label="Zurueck" className="p-1 text-gray-900"><ChevronLeft size={24} /></button>
+              <button aria-label="Zurück" className="p-1 text-gray-900"><ChevronLeft size={24} /></button>
             </Drawer.Close>
             <h2 className="text-[16px] font-bold text-gray-900">Workout</h2>
             <div className="mr-1 flex items-center gap-4 text-gray-900"><Share size={20} strokeWidth={2} /><MoreHorizontal size={24} /></div>
@@ -304,7 +304,7 @@ export function WorkoutDetailDrawer({ workoutId, onClose }: Props) {
             </div>
 
             <div className="sticky top-0 z-10 flex justify-between border-b border-[#EBEAE4] bg-white px-2 pt-1 shadow-sm">
-              {["Ueberblick", "Details", "Notizen"].map((tab) => (
+              {["Überblick", "Details", "Notizen"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -316,7 +316,7 @@ export function WorkoutDetailDrawer({ workoutId, onClose }: Props) {
             </div>
 
             <div className="space-y-5 p-5">
-              {activeTab === "Ueberblick" && (
+              {activeTab === "Überblick" && (
                 <>
                   <section className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">
                     <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">
@@ -408,7 +408,7 @@ export function WorkoutDetailDrawer({ workoutId, onClose }: Props) {
                     <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-900">Deine Notizen</h3>
                     <textarea
                       className="h-[120px] w-full resize-none rounded-[16px] border border-[#EBEAE4] bg-white p-4 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-[#6A816A]"
-                      placeholder="Wie hat sich die Einheit angefuehlt? Was lief gut, was willst du anpassen?"
+                      placeholder="Wie hat sich die Einheit angefühlt? Was lief gut, was willst du anpassen?"
                     />
                   </section>
                   <section>

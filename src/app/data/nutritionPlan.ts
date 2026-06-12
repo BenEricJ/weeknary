@@ -1070,7 +1070,7 @@ export const NUTRITION_PLAN: NutritionPlan = {
         carbs: 25,
         fat: 11,
         estimated: true,
-        note: "Makros als grobe Rezept-Schaetzung aus den Zutaten summiert.",
+        note: "Makros als grobe Rezept-Schätzung aus den Zutaten summiert.",
       },
     },
     "sojajoghurt-dip": {
@@ -1166,7 +1166,7 @@ export const NUTRITION_PLAN: NutritionPlan = {
     benefits: [
       "So Snack",
       "So Abend",
-      "Mo Folge-Woche ausserhalb dieses Plans",
+      "Mo Folge-Woche außerhalb dieses Plans",
     ],
   },
   leftoverRules: [

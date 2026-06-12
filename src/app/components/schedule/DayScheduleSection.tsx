@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Pencil, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
@@ -46,6 +46,7 @@ interface DayScheduleSectionProps {
   onActionsOpenChange?: (eventId: string | null) => void;
   selectionStrategy?: "all" | "upcoming";
   maxItems?: number;
+  scrollWhenOverflow?: boolean;
   now?: Date;
   showAllDayEvents?: boolean;
 }
@@ -60,6 +61,7 @@ function getVisibleEvents(
   selectionStrategy: "all" | "upcoming",
   maxItems?: number,
   now?: Date,
+  shouldLimit = true,
 ) {
   let visibleEvents = events;
 
@@ -71,7 +73,7 @@ function getVisibleEvents(
     visibleEvents = upcoming.length > 0 ? upcoming : events;
   }
 
-  if (typeof maxItems === "number") {
+  if (typeof maxItems === "number" && shouldLimit) {
     visibleEvents = visibleEvents.slice(0, maxItems);
   }
 
@@ -90,6 +92,7 @@ export function DayScheduleSection({
   onActionsOpenChange,
   selectionStrategy = "all",
   maxItems,
+  scrollWhenOverflow = false,
   now,
   showAllDayEvents = true,
 }: DayScheduleSectionProps) {
@@ -98,7 +101,41 @@ export function DayScheduleSection({
     selectionStrategy,
     maxItems,
     now,
+    !scrollWhenOverflow,
   );
+  const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const eventListRef = useRef<HTMLDivElement | null>(null);
+  const [eventListMaxHeight, setEventListMaxHeight] = useState<number | null>(
+    null,
+  );
+  const shouldUseScrollContainer =
+    scrollWhenOverflow &&
+    typeof maxItems === "number" &&
+    visibleEvents.length > maxItems;
+
+  useLayoutEffect(() => {
+    if (!shouldUseScrollContainer || typeof maxItems !== "number") {
+      setEventListMaxHeight(null);
+      return;
+    }
+
+    const eventList = eventListRef.current;
+    const lastVisibleItem = itemRefs.current[maxItems - 1];
+    if (!eventList || !lastVisibleItem) {
+      return;
+    }
+
+    const listRect = eventList.getBoundingClientRect();
+    const itemRect = lastVisibleItem.getBoundingClientRect();
+    setEventListMaxHeight(
+      Math.ceil(itemRect.bottom - listRect.top),
+    );
+  }, [maxItems, shouldUseScrollContainer, visibleEvents.length]);
+
+  const eventListStyle =
+    shouldUseScrollContainer && eventListMaxHeight
+      ? { maxHeight: eventListMaxHeight }
+      : undefined;
 
   const allowActions =
     typeof onEdit === "function" &&
@@ -130,22 +167,36 @@ export function DayScheduleSection({
           ))}
         </div>
       ) : null}
-      <div className="flex flex-col gap-2">
-        {visibleEvents.map((event) => (
-          <EventCard
+      <div
+        ref={eventListRef}
+        className={`flex flex-col gap-2 ${
+          shouldUseScrollContainer
+            ? "hide-scrollbar overflow-y-auto overscroll-contain pr-1"
+            : ""
+        }`}
+        style={eventListStyle}
+      >
+        {visibleEvents.map((event, index) => (
+          <div
             key={event.id}
-            event={event}
-            meta={categoryMeta[event.category]}
-            onOpen={() => onOpen(event)}
-            onEdit={allowActions ? () => onEdit(event.id) : undefined}
-            onDelete={allowActions ? () => onDelete(event.id) : undefined}
-            isActionsOpen={openSwipeEventId === event.id}
-            onActionsOpenChange={
-              allowActions
-                ? (isOpen) => onActionsOpenChange(isOpen ? event.id : null)
-                : undefined
-            }
-          />
+            ref={(node) => {
+              itemRefs.current[index] = node;
+            }}
+          >
+            <EventCard
+              event={event}
+              meta={categoryMeta[event.category]}
+              onOpen={() => onOpen(event)}
+              onEdit={allowActions ? () => onEdit(event.id) : undefined}
+              onDelete={allowActions ? () => onDelete(event.id) : undefined}
+              isActionsOpen={openSwipeEventId === event.id}
+              onActionsOpenChange={
+                allowActions
+                  ? (isOpen) => onActionsOpenChange(isOpen ? event.id : null)
+                  : undefined
+              }
+            />
+          </div>
         ))}
       </div>
     </section>
@@ -172,9 +223,15 @@ function EventCard({
   const Icon = meta.icon;
   const actionsWidth = 160;
   const hasActions = onEdit && onDelete && onActionsOpenChange;
+  const subtaskCount = event.subtasks?.length ?? 0;
+  const subtitle = subtaskCount
+    ? `${event.subtitle} · ${subtaskCount} ${
+        subtaskCount === 1 ? "Aufgabe" : "Aufgaben"
+      }`
+    : event.subtitle;
 
   const cardContent = (
-    <div className="flex items-center gap-3">
+    <div className="flex h-full items-center gap-3">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/70">
         <Icon size={18} className={meta.iconClassName} />
       </div>
@@ -184,20 +241,8 @@ function EventCard({
           {event.title}
         </h4>
         <p className="mt-0.5 truncate text-[11px] leading-tight text-gray-500">
-          {event.subtitle}
+          {subtitle}
         </p>
-        {event.subtasks?.length ? (
-          <div className="mt-1.5 flex flex-col gap-0.5">
-            {event.subtasks.map((subtask) => (
-              <span
-                key={subtask}
-                className="truncate text-[10px] leading-tight text-gray-600"
-              >
-                • {subtask}
-              </span>
-            ))}
-          </div>
-        ) : null}
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1 self-start">
@@ -217,7 +262,7 @@ function EventCard({
     return (
       <button
         onClick={onOpen}
-        className={`w-full text-left rounded-[16px] border p-2.5 shadow-sm transition-colors hover:brightness-[0.99] ${meta.surfaceClassName} ${meta.borderClassName}`}
+        className={`h-[60px] w-full overflow-hidden text-left rounded-[16px] border p-2.5 shadow-sm transition-colors hover:brightness-[0.99] ${meta.surfaceClassName} ${meta.borderClassName}`}
       >
         {cardContent}
       </button>
@@ -264,7 +309,7 @@ function EventCard({
 
           onOpen();
         }}
-        className={`relative w-full text-left rounded-[16px] border p-2.5 shadow-sm transition-colors hover:brightness-[0.99] ${meta.surfaceClassName} ${meta.borderClassName}`}
+        className={`relative h-[60px] w-full overflow-hidden text-left rounded-[16px] border p-2.5 shadow-sm transition-colors hover:brightness-[0.99] ${meta.surfaceClassName} ${meta.borderClassName}`}
         style={{ touchAction: "pan-y" }}
       >
         {cardContent}

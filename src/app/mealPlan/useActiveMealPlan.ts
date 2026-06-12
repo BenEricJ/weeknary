@@ -14,6 +14,10 @@ import {
 import {
   legacyNutritionPlanToDomain,
 } from "./legacyNutritionPlanMapper";
+import {
+  applyCurrentWeekToMealPlan,
+  applyCurrentWeekToNutritionPlan,
+} from "../currentWeekPlanData";
 import { mealPlanToNutritionPlan } from "./mealPlanDisplayAdapter";
 import { mealPlanRuntime } from "./mealPlanRuntime";
 import { authProvider } from "../supabaseRuntime";
@@ -53,7 +57,7 @@ export function useActiveMealPlan() {
       }
 
       const active = await runtime.mealPlanService.getActiveMealPlan(runtime.userId);
-      setPlan(active);
+      setPlan(active ? applyCurrentWeekToMealPlan(active) : null);
       setUserId(runtime.userId);
       setUserEmail(runtime.userEmail);
       setStatus(active ? "ready" : "empty");
@@ -110,7 +114,10 @@ export function useActiveMealPlan() {
     }
 
     const now = new Date().toISOString();
-    const seed = legacyNutritionPlanToDomain(NUTRITION_PLAN, runtime.userId);
+    const seed = legacyNutritionPlanToDomain(
+      applyCurrentWeekToNutritionPlan(NUTRITION_PLAN),
+      runtime.userId,
+    );
     await runtime.mealPlanService.saveMealPlan({
       ...seed,
       id: scopedDemoId("meal", runtime.userId),
@@ -138,10 +145,20 @@ export function useActiveMealPlan() {
     await reload();
   }, [plan, reload, userId]);
 
-  const displayPlan = useMemo(
-    () => (plan ? mealPlanToNutritionPlan(plan) : NUTRITION_PLAN),
-    [plan],
-  );
+  const displayPlan = useMemo(() => {
+    const fallback = applyCurrentWeekToNutritionPlan(NUTRITION_PLAN);
+
+    if (!plan) {
+      return fallback;
+    }
+
+    const activeDisplayPlan = mealPlanToNutritionPlan(plan);
+    const hasMealContent = activeDisplayPlan.days.some(
+      (day) => day.meals.length > 0,
+    );
+
+    return hasMealContent ? activeDisplayPlan : fallback;
+  }, [plan]);
 
   return {
     status,

@@ -79,16 +79,16 @@ export function NutritionMealDetailDrawer({
   externalGuidance,
   onClose,
 }: NutritionMealDetailDrawerProps) {
-  const [activeTab, setActiveTab] = useState("Ueberblick");
+  const [activeTab, setActiveTab] = useState("Überblick");
 
   useEffect(() => {
-    setActiveTab("Ueberblick");
+    setActiveTab("Überblick");
   }, [day?.isoDate, slot?.slot, meal?.id]);
 
   const slotType = slot?.slot;
   const slotMeta = slotType ? SLOT_META[slotType] : null;
   const tabs = useMemo(
-    () => (meal?.preparation?.length ? ["Ueberblick", "Zubereitung"] : ["Ueberblick"]),
+    () => (meal?.preparation?.length ? ["Überblick", "Zubereitung"] : ["Überblick"]),
     [meal],
   );
 
@@ -98,7 +98,7 @@ export function NutritionMealDetailDrawer({
 
   const Icon = slotMeta.icon;
   const title = meal?.name ?? externalGuidance.title;
-  const subtitle = meal?.use ?? "Ausser Haus eingeplant und bewusst unpraezise als Range dargestellt.";
+  const subtitle = meal?.use ?? "Außer Haus eingeplant und bewusst unpräzise als Range dargestellt.";
 
   return (
     <Drawer.Root open={!!slot} onOpenChange={(open) => !open && onClose()}>
@@ -106,14 +106,14 @@ export function NutritionMealDetailDrawer({
         <Drawer.Overlay className="fixed inset-0 z-50 bg-black/40" />
         <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 mx-auto flex h-[95vh] max-w-[390px] flex-col overflow-hidden rounded-t-[24px] bg-[#F5F4EF] outline-none">
           <Drawer.Description className="sr-only">
-            Detailansicht fuer eine Mahlzeit mit Zutaten, Makros und optionalen Zubereitungsschritten.
+            Detailansicht für eine Mahlzeit mit Zutaten, Makros und optionalen Zubereitungsschritten.
           </Drawer.Description>
 
           <div className="flex items-center justify-between bg-white px-4 py-3 border-b border-[#EBEAE4]">
             <button
               onClick={onClose}
               className="rounded-full p-1 text-gray-900 transition-colors hover:bg-gray-100"
-              aria-label="Zurueck"
+              aria-label="Zurück"
             >
               <ChevronLeft size={24} />
             </button>
@@ -184,7 +184,7 @@ export function NutritionMealDetailDrawer({
             </div>
 
             <div className="space-y-5 p-5">
-              {activeTab === "Ueberblick" ? (
+              {activeTab === "Überblick" ? (
                 <div className="space-y-5">
                   {meal?.nutrition ? (
                     <section className="rounded-[16px] border border-[#EBEAE4] bg-white p-4">

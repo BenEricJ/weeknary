@@ -53,7 +53,7 @@ export function mealPlanToNutritionPlan(plan: MealPlan): NutritionPlan {
         kcalTarget,
         proteinTarget,
       },
-      dailyLogic: `KI-generierter MealPlan fuer ${parts.dayLabel}.`,
+      dailyLogic: `KI-generierter MealPlan für ${parts.dayLabel}.`,
       meals: day.meals.map((meal) => ({
         slot: meal.slotType,
         mealType: meal.external ? "external" as const : "recipe" as const,
@@ -91,7 +91,7 @@ export function mealPlanToNutritionPlan(plan: MealPlan): NutritionPlan {
       kcalRange: "flexibel",
       proteinRange: "proteinbewusst",
       assumptions: [],
-      tips: ["Bewusst waehlen und bei Bedarf im Plan nachtragen."],
+      tips: ["Bewusst wählen und bei Bedarf im Plan nachtragen."],
       warning: "Externes Meal ist als flexible Platzhalter-Mahlzeit geplant.",
     },
     criticalNutrientTips: [],
@@ -100,7 +100,7 @@ export function mealPlanToNutritionPlan(plan: MealPlan): NutritionPlan {
       shoppingCost: 0,
       pantryShare: 0,
       totalCost: 0,
-      status: "Budget fuer KI-Plan nicht berechnet.",
+      status: "Budget für KI-Plan nicht berechnet.",
       note: plan.shoppingList.length
         ? `Einkaufsliste: ${plan.shoppingList.join(", ")}`
         : "Keine Einkaufsliste vorhanden.",

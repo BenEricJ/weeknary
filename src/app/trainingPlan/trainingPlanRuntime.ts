@@ -2,6 +2,7 @@ import { TrainingPlanService } from "../../application";
 import { InMemoryTrainingPlanRepository } from "../../infrastructure/memory";
 import { SupabaseTrainingPlanRepository } from "../../infrastructure/supabase";
 import { TRAINING_PLAN_ROWS } from "../data/trainingPlan";
+import { applyCurrentWeekToTrainingRows } from "../currentWeekPlanData";
 import {
   authProvider,
   isRemoteConfigured,
@@ -13,7 +14,7 @@ import {
 } from "./legacyTrainingPlanMapper";
 
 const trainingPlanRepository = new InMemoryTrainingPlanRepository([
-  legacyTrainingPlanToDomain(TRAINING_PLAN_ROWS),
+  legacyTrainingPlanToDomain(applyCurrentWeekToTrainingRows(TRAINING_PLAN_ROWS).rows),
 ]);
 
 export const trainingPlanService = new TrainingPlanService(trainingPlanRepository);
@@ -28,7 +29,9 @@ export const trainingPlanRuntime = {
       DEMO_TRAINING_PLAN_USER_ID,
     );
     if (!active) {
-      await trainingPlanRepository.save(legacyTrainingPlanToDomain(TRAINING_PLAN_ROWS));
+      await trainingPlanRepository.save(
+        legacyTrainingPlanToDomain(applyCurrentWeekToTrainingRows(TRAINING_PLAN_ROWS).rows),
+      );
     }
   },
 };

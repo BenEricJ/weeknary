@@ -186,7 +186,7 @@ export function useCreateHub(): CreateHubState {
                 ? caught.message
                 : "Plan bundle generation failed.",
             code: "unexpected_error",
-            hint: "Bitte spaeter erneut versuchen.",
+            hint: "Bitte später erneut versuchen.",
           }),
         );
         setError(

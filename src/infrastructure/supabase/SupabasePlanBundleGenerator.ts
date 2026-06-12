@@ -96,7 +96,7 @@ export class SupabasePlanBundleGenerator implements PlanBundleGeneratorPort {
       throw new PlanBundleGenerationErrorClass({
         error: "Plan bundle generation failed: empty response.",
         code: "unexpected_error",
-        hint: "Bitte spaeter erneut versuchen.",
+        hint: "Bitte später erneut versuchen.",
       });
     }
 
@@ -122,7 +122,7 @@ function toPlanBundleGenerationError(status: number, body: unknown): PlanBundleG
   return new PlanBundleGenerationErrorClass({
     error: "Plan bundle generation failed.",
     code: status === 401 ? "auth_required" : "unexpected_error",
-    hint: status === 401 ? "Bitte erneut anmelden." : "Bitte spaeter erneut versuchen.",
+    hint: status === 401 ? "Bitte erneut anmelden." : "Bitte später erneut versuchen.",
     details: typeof body === "string" && body.trim() ? body.trim() : undefined,
     status,
   });

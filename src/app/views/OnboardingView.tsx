@@ -30,7 +30,7 @@ interface OnboardingPrefs {
 const domainCards = [
   {
     icon: Apple,
-    label: "Ernaehrung",
+    label: "Ernährung",
     desc: "Vegan und alltagstauglich",
   },
   {
@@ -41,7 +41,7 @@ const domainCards = [
   {
     icon: ClipboardCheck,
     label: "Review",
-    desc: "Rueckblick und naechste Ziele",
+    desc: "Rückblick und nächste Ziele",
   },
   {
     icon: Moon,
@@ -105,7 +105,7 @@ export function OnboardingView() {
           throw new Error(
             session.status === "unavailable"
               ? session.reason
-              : "Anmeldung fehlgeschlagen. Bitte pruefe E-Mail und Passwort.",
+              : "Anmeldung fehlgeschlagen. Bitte prüfe E-Mail und Passwort.",
           );
         }
       }
@@ -199,7 +199,7 @@ function SplashStep({ onNext }: { onNext: () => void }) {
         Los geht's
       </button>
       <p className="text-[11px] leading-relaxed text-gray-400">
-        Vegan · Ernaehrung · Training · Schlaf
+        Vegan · Ernährung · Training · Schlaf
       </p>
     </section>
   );
@@ -216,7 +216,7 @@ function HeroStep({ onNext }: { onNext: () => void }) {
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/40 to-black/90" />
       <div className="absolute inset-x-0 bottom-0 px-7 pb-11 text-white">
         <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">
-          Erzaehl uns ein paar Dinge ueber dich
+          Erzähl uns ein paar Dinge über dich
         </p>
         <h2 className="text-4xl font-bold leading-tight tracking-normal">
           Deine Woche.
@@ -245,7 +245,7 @@ function DomainsStep({ onNext }: { onNext: () => void }) {
     <section className="absolute inset-0 flex flex-col bg-[#FAF9F6] px-6 pb-11 pt-14">
       <div className="flex flex-1 flex-col justify-center">
         <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.12em] text-[#4A634A]">
-          Was Weeknary fuer dich tut
+          Was Weeknary für dich tut
         </p>
         <h2 className="text-[30px] font-bold leading-tight tracking-normal text-gray-900">
           Alles.
@@ -310,7 +310,7 @@ function ProfileSetupStep({
         onClick={onBack}
         className="mb-5 text-[12px] font-bold text-gray-500"
       >
-        Zurueck
+        Zurück
       </button>
       <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.12em] text-[#4A634A]">
         Schritt 3 von 3
@@ -321,13 +321,13 @@ function ProfileSetupStep({
         Dein Weg.
       </h2>
       <p className="mt-2 text-[13px] leading-relaxed text-gray-500">
-        Erzaehl uns ein paar Dinge ueber dich, und wir speichern deinen ersten
+        Erzähl uns ein paar Dinge über dich, und wir speichern deinen ersten
         Weeknary-Start.
       </p>
 
       <div className="mt-7 grid gap-4">
         <TextInput
-          label="Wie heisst du?"
+          label="Wie heißt du?"
           value={prefs.displayName}
           placeholder="Vorname"
           onChange={(displayName) => onChange({ displayName })}
@@ -342,7 +342,7 @@ function ProfileSetupStep({
               <div>
                 <p className="text-[13px] font-bold text-gray-900">Account</p>
                 <p className="mt-1 text-[11px] leading-snug text-gray-500">
-                  Profil und Plaene werden mit Supabase synchronisiert.
+                  Profil und Pläne werden mit Supabase synchronisiert.
                 </p>
               </div>
             </div>

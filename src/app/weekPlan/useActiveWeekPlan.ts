@@ -3,6 +3,10 @@ import type { AuthCredentials, AuthSession } from "../../application";
 import type { WeekPlan } from "../../domain";
 import { WEEK_PLAN } from "../data/weekPlan";
 import {
+  applyCurrentWeekToDayPlans,
+  applyCurrentWeekToWeekPlan,
+} from "../currentWeekPlanData";
+import {
   legacyWeekPlanToDomain,
 } from "./legacyWeekPlanMapper";
 import {
@@ -58,7 +62,7 @@ export function useActiveWeekPlan() {
       const activePlan = await runtime.weekPlanService.getActiveWeekPlan(
         runtime.userId,
       );
-      setPlan(activePlan);
+      setPlan(activePlan ? applyCurrentWeekToWeekPlan(activePlan) : null);
       setUserId(runtime.userId);
       setUserEmail(runtime.userEmail);
       setLocalFirstStatus(
@@ -121,7 +125,10 @@ export function useActiveWeekPlan() {
     }
 
     const now = new Date().toISOString();
-    const seed = legacyWeekPlanToDomain(WEEK_PLAN, runtime.userId);
+    const seed = legacyWeekPlanToDomain(
+      applyCurrentWeekToDayPlans(WEEK_PLAN),
+      runtime.userId,
+    );
     let saveError: unknown = null;
 
     try {

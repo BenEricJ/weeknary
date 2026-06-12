@@ -8,7 +8,7 @@ export function legacyNutritionPlanToDomain(
   plan: NutritionPlan,
   userId = DEMO_MEAL_PLAN_USER_ID,
 ): MealPlan {
-  const now = "2026-04-06T00:00:00.000Z";
+  const now = new Date().toISOString();
 
   return {
     id: DEMO_MEAL_PLAN_ID,

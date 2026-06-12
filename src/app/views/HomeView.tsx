@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  Zap,
+  CalendarDays,
   Moon,
-  Utensils,
   Flame,
-  Home as HomeIcon,
   Droplet,
   Footprints,
   ShieldCheck,
@@ -17,7 +15,6 @@ import {
 } from "../components/EventEditDrawer";
 import {
   WorkoutDetailDrawer,
-  WORKOUT_DATA,
 } from "../components/WorkoutDetailDrawer";
 import { FocusDetailDrawer } from "../components/FocusDetailDrawer";
 import { AppTabHeader } from "../components/AppTabHeader";
@@ -37,16 +34,11 @@ import { FOCUS_STEPS } from "../data/focusSteps";
 import {
   NUTRITION_PLAN,
   getDayByDate,
-  getMealById,
-  type MealSlotType,
-  type NutritionDay,
 } from "../data/nutritionPlan";
 import {
   CATEGORY_META,
   WEEK_PLAN,
   buildEventDetail,
-  getDayDate,
-  isSameDay,
   toMinutes,
   type CategoryKey,
   type DayPlan,
@@ -54,129 +46,75 @@ import {
   type ScheduleEntry,
 } from "../data/weekPlan";
 import {
-  getDateInISOWeek,
+  applyCurrentWeekToDayPlans,
+  applyCurrentWeekToNutritionPlan,
+} from "../currentWeekPlanData";
+import {
   getISOWeekDays,
   getISOWeekNumber,
   getISOWeekRange,
   getISOWeekYear,
   getSurroundingWeekOptions,
-  getWeekdayIndex,
 } from "../calendarWeekOptions";
-import { toIsoDate, parseIsoDate } from "../dateDisplay";
+import { formatWeekdayShortLabel, toIsoDate, parseIsoDate } from "../dateDisplay";
 import { useActiveWeekPlan } from "../weekPlan/useActiveWeekPlan";
 import { weekPlanToDisplayDays } from "../weekPlan/weekPlanDisplayAdapter";
 import {
   createEmptyDisplayDay,
   getDayKey,
 } from "../weekPlan/displayDayFactory";
-
-const EATEN_SLOT_CUTOFF_MINUTES: Record<MealSlotType, number> =
-  {
-    breakfast: 10 * 60,
-    lunch: 14 * 60,
-    snack: 17 * 60,
-    dinner: 21 * 60,
-  };
-
-function getWorkoutKcal(workoutId: string) {
-  const kcalStat = WORKOUT_DATA[workoutId]?.statsBar.find(
-    (stat) => stat.val.toLowerCase().includes("kcal"),
-  );
-  const kcalValue = kcalStat?.val.match(/\d+/g)?.join("");
-
-  return kcalValue ? Number(kcalValue) : 0;
-}
-
-function getBurnedWorkoutKcal(day: DayPlan, now: Date) {
-  const dayDate = getDayDate(day);
-  const todayStart = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  );
-  const isPastDay = dayDate < todayStart;
-  const isToday = isSameDay(dayDate, now);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-  return day.events.reduce((total, event) => {
-    if (!event.workoutId) {
-      return total;
-    }
-
-    const hasEnded = toMinutes(event.end) <= currentMinutes;
-    if (!isPastDay && (!isToday || !hasEnded)) {
-      return total;
-    }
-
-    return total + getWorkoutKcal(event.workoutId);
-  }, 0);
-}
-
-function getExternalMealKcalEstimate() {
-  const rangeValues =
-    NUTRITION_PLAN.externalMealGuidance.kcalRange
-      .match(/\d+/g)
-      ?.map(Number);
-
-  if (!rangeValues?.length) {
-    return 0;
-  }
-
-  if (rangeValues.length === 1) {
-    return rangeValues[0];
-  }
-
-  return Math.round((rangeValues[0] + rangeValues[1]) / 2);
-}
-
-function getNutritionDayDate(day: NutritionDay) {
-  const [year, month, date] = day.isoDate
-    .split("-")
-    .map(Number);
-  return new Date(year, month - 1, date);
-}
-
-function getEatenKcalForDay(day: NutritionDay, now: Date) {
-  const dayDate = getNutritionDayDate(day);
-  const todayStart = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  );
-  const isPastDay = dayDate < todayStart;
-  const isToday = isSameDay(dayDate, now);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-  return day.meals.reduce((total, slot) => {
-    const cutoffMinutes = EATEN_SLOT_CUTOFF_MINUTES[slot.slot];
-    if (
-      !isPastDay &&
-      (!isToday || currentMinutes < cutoffMinutes)
-    ) {
-      return total;
-    }
-
-    if (slot.isExternal) {
-      return total + getExternalMealKcalEstimate();
-    }
-
-    const meal = getMealById(NUTRITION_PLAN, slot.mealId);
-    return total + (meal?.nutrition?.kcal ?? 0);
-  }, 0);
-}
+import { usePlanCalendarSelection } from "../planCalendarSelection";
+import { getBurnedWorkoutKcal, getEatenKcalForDay } from "../home/homeMetrics";
 
 export function HomeView() {
   const navigate = useNavigate();
   const activeWeekPlan = useActiveWeekPlan();
+  const {
+    selectedDate,
+    selectedWeek,
+    selectionMode: calendarMode,
+    setSelectedDate,
+    setSelectedWeek,
+    setSelectionMode: setCalendarMode,
+  } = usePlanCalendarSelection();
   const sourceWeekPlan = useMemo(
-    () =>
-      activeWeekPlan.plan
-        ? weekPlanToDisplayDays(activeWeekPlan.plan)
-        : WEEK_PLAN.map((day) => ({
-            ...day,
-            dayKey: toIsoDate(getDayDate(day)),
-          })),
+    () => {
+      const fallback = applyCurrentWeekToDayPlans(WEEK_PLAN);
+
+      if (!activeWeekPlan.plan) {
+        return fallback;
+      }
+
+      const displayDays = weekPlanToDisplayDays(activeWeekPlan.plan);
+      const fallbackByDate = new Map(
+        fallback.map((day) => [getDayKey(day), day]),
+      );
+      const mergedDays = displayDays.map((day) => {
+        const hasDayContent =
+          day.events.length > 0 || day.allDayEvents.length > 0;
+
+        return hasDayContent
+          ? day
+          : fallbackByDate.get(getDayKey(day)) ?? day;
+      });
+      const displayDateSet = new Set(mergedDays.map((day) => getDayKey(day)));
+      const missingFallbackDays = fallback.filter(
+        (day) => !displayDateSet.has(getDayKey(day)),
+      );
+      const mergedWithFallback = [...mergedDays, ...missingFallbackDays].sort(
+        (left, right) => getDayKey(left).localeCompare(getDayKey(right)),
+      );
+      const hasPlanContent = mergedWithFallback.some(
+        (day) => day.events.length > 0 || day.allDayEvents.length > 0,
+      );
+
+      return hasPlanContent ? mergedWithFallback : fallback;
+    },
     [activeWeekPlan.plan],
+  );
+  const currentNutritionPlan = useMemo(
+    () => applyCurrentWeekToNutritionPlan(NUTRITION_PLAN),
+    [],
   );
   const [weekPlan, setWeekPlan] = useState(() => sourceWeekPlan);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -191,16 +129,14 @@ export function HomeView() {
   const [openSwipeEventId, setOpenSwipeEventId] = useState<
     string | null
   >(null);
-  const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
   const currentWeekNumber = useMemo(
     () => getISOWeekNumber(new Date()),
     [],
   );
-  const currentWeekYear = useMemo(() => getISOWeekYear(new Date()), []);
-  const [calendarMode, setCalendarMode] =
-    useState<WeekCalendarSelectionMode>("day");
-  const [selectedWeek, setSelectedWeek] =
-    useState(currentWeekNumber);
+  const selectedWeekYear = useMemo(
+    () => getISOWeekYear(parseIsoDate(selectedDate)),
+    [selectedDate],
+  );
   const [now, setNow] = useState(() => new Date());
 
   const [checkedItems, setCheckedItems] = useState<
@@ -251,8 +187,8 @@ export function HomeView() {
     [selectedDate, weekPlan],
   );
   const selectedWeekRange = useMemo(
-    () => getISOWeekRange(currentWeekYear, selectedWeek),
-    [currentWeekYear, selectedWeek],
+    () => getISOWeekRange(selectedWeekYear, selectedWeek),
+    [selectedWeekYear, selectedWeek],
   );
   const hasSelectedWeekData = useMemo(
     () =>
@@ -278,8 +214,8 @@ export function HomeView() {
     [hasSelectedDayData, selectedDay, now],
   );
   const selectedNutritionDay = useMemo(
-    () => getDayByDate(NUTRITION_PLAN, selectedDate),
-    [selectedDate],
+    () => getDayByDate(currentNutritionPlan, selectedDate),
+    [currentNutritionPlan, selectedDate],
   );
   const eatenKcal = useMemo(
     () => getEatenKcalForDay(selectedNutritionDay, now),
@@ -288,11 +224,20 @@ export function HomeView() {
 
   const weekDays = useMemo(
     () =>
-      getISOWeekDays(currentWeekYear, selectedWeek).map((day) => ({
+      getISOWeekDays(selectedWeekYear, selectedWeek).map((day) => ({
         ...day,
         hasData: weekPlanDateSet.has(day.date),
       })),
-    [currentWeekYear, selectedWeek, weekPlanDateSet],
+    [selectedWeekYear, selectedWeek, weekPlanDateSet],
+  );
+  const selectedWeekDays = useMemo(
+    () =>
+      weekDays.map(
+        (day) =>
+          weekPlan.find((entry) => getDayKey(entry) === day.date) ??
+          createEmptyDisplayDay(day.date),
+      ),
+    [weekDays, weekPlan],
   );
   const currentDate = useMemo(
     () =>
@@ -304,7 +249,7 @@ export function HomeView() {
   const weekOptions = useMemo(
     () =>
       getSurroundingWeekOptions(selectedWeek).map((week) => {
-        const range = getISOWeekRange(currentWeekYear, week.weekNumber);
+        const range = getISOWeekRange(selectedWeekYear, week.weekNumber);
         return {
           ...week,
           hasData: Array.from(weekPlanDateSet).some(
@@ -312,7 +257,7 @@ export function HomeView() {
           ),
         };
       }),
-    [currentWeekYear, selectedWeek, weekPlanDateSet],
+    [selectedWeekYear, selectedWeek, weekPlanDateSet],
   );
 
   const categoryOptions = useMemo(
@@ -463,14 +408,6 @@ export function HomeView() {
     }
   };
 
-  const handleWeekChange = (weekNumber: number) => {
-    const weekdayIndex = getWeekdayIndex(parseIsoDate(selectedDate));
-    setSelectedWeek(weekNumber);
-    setSelectedDate(
-      getDateInISOWeek(currentWeekYear, weekNumber, weekdayIndex),
-    );
-  };
-
   const createPlanForSelection = () => {
     const range =
       calendarMode === "week"
@@ -502,11 +439,11 @@ export function HomeView() {
   return (
     <div className="relative h-full w-full bg-[#FAF9F6] flex flex-col overflow-hidden">
       <AppTabHeader
-        icon={HomeIcon}
-        title="Home"
+        icon={CalendarDays}
+        title="Plan"
         subtitle={
           <>
-            {selectedDay.dayLabel}, {selectedDay.date}.{" "}
+            {formatWeekdayShortLabel(selectedDay.dayShort)}, {selectedDay.date}.{" "}
             {selectedDay.monthLabel}
             {" · "}
             {selectedDay.events.length} Blöcke geplant
@@ -516,90 +453,7 @@ export function HomeView() {
       />
 
       <div className="hide-scrollbar flex-1 overflow-y-auto px-6 pt-[112px] pb-[88px] flex flex-col gap-5">
-      <div className="grid grid-cols-4 gap-2">
-        <button
-          onClick={() => navigate("/app/review")}
-          className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
-        >
-          <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
-            <Zap
-              size={18}
-              strokeWidth={2.5}
-              className="text-[#4A634A]"
-            />
-          </div>
-          <div className="flex flex-col min-w-0 leading-tight">
-            <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
-              72
-            </span>
-            <span className="block text-[8px] font-semibold truncate text-[#4A634A]">
-              Gut
-            </span>
-          </div>
-        </button>
-        <button
-          onClick={() => navigate("/app/sleep")}
-          className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
-        >
-          <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
-            <Moon
-              size={18}
-              strokeWidth={2.5}
-              className="text-[#6B5B95]"
-            />
-          </div>
-          <div className="flex flex-col min-w-0 leading-tight">
-            <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
-              7h 15
-            </span>
-            <span className="block text-[8px] font-semibold truncate text-[#4A634A]">
-              Gut
-            </span>
-          </div>
-        </button>
-        <button
-          onClick={() => navigate("/app/training")}
-          className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
-        >
-          <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
-            <Flame
-              size={18}
-              strokeWidth={2.5}
-              className="text-[#D37F36]"
-            />
-          </div>
-          <div className="flex flex-col min-w-0 leading-tight">
-            <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
-              {burnedWorkoutKcal.toLocaleString("de-DE")} kcal
-            </span>
-            <span className="block text-[8px] font-semibold truncate text-[#4a634a]">
-              Gut
-            </span>
-          </div>
-        </button>
-        <button
-          onClick={() => navigate("/app/nutrition")}
-          className="bg-white rounded-[16px] p-1.5 shadow-sm border border-gray-100/80 flex items-center gap-2 min-h-[48px] w-full text-left transition-all hover:bg-gray-50 active:scale-[0.95]"
-        >
-          <div className="shrink-0 w-7 h-7 flex items-center justify-center bg-gray-50/50 rounded-lg">
-            <Utensils
-              size={18}
-              strokeWidth={2.5}
-              className="text-[#4A634A]"
-            />
-          </div>
-          <div className="flex flex-col min-w-0 leading-tight">
-            <span className="text-[11px] font-bold tracking-tight truncate text-gray-900">
-              {eatenKcal.toLocaleString("de-DE")} kcal
-            </span>
-            <span className="block text-[8px] font-semibold truncate text-[#4A634A]">
-              Gut
-            </span>
-          </div>
-        </button>
-      </div>
-
-      <div className="-mt-1">
+      <div>
         <WeekCalendar
           days={weekDays}
           activeDate={selectedDate}
@@ -607,7 +461,7 @@ export function HomeView() {
           currentDate={currentDate}
           weeks={weekOptions}
           activeWeek={selectedWeek}
-          onWeekChange={handleWeekChange}
+          onWeekChange={setSelectedWeek}
           currentWeek={currentWeekNumber}
           selectionMode={calendarMode}
           onSelectionModeChange={setCalendarMode}
@@ -616,6 +470,78 @@ export function HomeView() {
       </div>
 
       {(calendarMode === "week" ? hasSelectedWeekData : hasSelectedDayData) ? (
+        calendarMode === "week" ? (
+          <>
+            <WeeklyFocusCard
+              onClick={() => setIsFocusOpen(true)}
+              progressPercent={progressPercent}
+              nextStep={nextStep}
+            />
+
+            <section className="flex flex-col gap-3">
+              <div className="px-1">
+                <h3 className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">
+                  Wochenplan
+                </h3>
+              </div>
+              {selectedWeekDays.map((day) => (
+                <div key={getDayKey(day)} className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDate(getDayKey(day));
+                      setCalendarMode("day");
+                    }}
+                    className={`w-full rounded-[14px] border px-3 py-2 text-left shadow-sm transition-colors ${
+                      getDayKey(day) === selectedDate
+                        ? "border-[#DCE4DC] bg-[#F2F4F2]"
+                        : "border-gray-100 bg-white hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-bold text-gray-900">
+                          {day.dayLabel}
+                        </p>
+                        <p className="text-[11px] text-gray-500">
+                          {day.date}. {day.monthLabel}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[12px] font-bold text-gray-900">
+                          {day.events.length} Blöcke
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          {day.events[0]?.title ?? "Kein Termin"}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                  {day.events.length > 0 || day.allDayEvents.length > 0 ? (
+                    <DayScheduleSection
+                      title=""
+                      day={day}
+                      categoryMeta={CATEGORY_META}
+                      onOpen={(entry) =>
+                        openScheduleEntry(day, entry as ScheduleEntry)
+                      }
+                      onEdit={(eventId) =>
+                        openEventEditor(getDayKey(day), eventId)
+                      }
+                      onDelete={(eventId) =>
+                        deleteEvent(getDayKey(day), eventId)
+                      }
+                      openSwipeEventId={openSwipeEventId}
+                      onActionsOpenChange={setOpenSwipeEventId}
+                      maxItems={3}
+                      showAllDayEvents
+                    />
+                  ) : null}
+                </div>
+              ))}
+            </section>
+        </>
+        ) : (
         <>
       <WeeklyFocusCard
         onClick={() => setIsFocusOpen(true)}
@@ -624,9 +550,10 @@ export function HomeView() {
       />
 
       <DayScheduleSection
-        title={
-          isSelectedDayToday ? "Heute" : selectedDay.dayLabel
-        }
+        title="Tagesplan"
+        rightLabel={`${selectedDay.events.length} ${
+          selectedDay.events.length === 1 ? "Element" : "Elemente"
+        }`}
         day={{ ...selectedDay, allDayEvents: [] }}
         categoryMeta={CATEGORY_META}
         onOpen={(entry) =>
@@ -641,8 +568,7 @@ export function HomeView() {
         openSwipeEventId={openSwipeEventId}
         onActionsOpenChange={setOpenSwipeEventId}
         maxItems={3}
-        now={now}
-        selectionStrategy="upcoming"
+        scrollWhenOverflow
         showAllDayEvents={false}
       />
 
@@ -706,7 +632,7 @@ export function HomeView() {
         <div className="bg-white rounded-[16px] border border-gray-100 shadow-sm p-3.5 flex justify-between items-center">
           <div className="flex gap-2 items-center flex-1">
             <button
-              onClick={() => navigate("/app/week")}
+              onClick={() => setIsFocusOpen(true)}
               className="flex flex-col gap-1 flex-1 min-w-0 text-left rounded-md p-1 -m-1 transition-colors hover:bg-gray-50 active:scale-[0.98]"
               aria-label="Ziele dieser Woche öffnen"
             >
@@ -767,15 +693,15 @@ export function HomeView() {
           </div>
         </div>
       </div>
-        </>
+        </>)
       ) : (
         <CalendarEmptyState
           title={
             calendarMode === "week"
-              ? `Keine Daten fuer KW ${selectedWeek}`
-              : `Keine Daten fuer ${selectedDay.dayLabel}, ${selectedDay.date}. ${selectedDay.monthLabel}`
+              ? `Keine Daten für KW ${selectedWeek}`
+              : `Keine Daten für ${selectedDay.dayLabel}, ${selectedDay.date}. ${selectedDay.monthLabel}`
           }
-          description="Fuer diesen Zeitraum liegt im aktuellen Wochenplan noch nichts vor."
+          description="Für diesen Zeitraum liegt im aktuellen Wochenplan noch nichts vor."
           onCreatePlan={createPlanForSelection}
           onManualAdd={openNewEventEditor}
         />

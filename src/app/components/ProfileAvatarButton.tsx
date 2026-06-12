@@ -16,7 +16,7 @@ export function ProfileAvatarButton({
     <button
       type="button"
       onClick={onClick}
-      aria-label="Profil oeffnen"
+      aria-label="Profil öffnen"
       className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#78916F] text-[15px] font-bold text-white shadow-[0_0_0_8px_rgba(94,122,94,0.10)] transition-transform active:scale-95 ${className}`}
     >
       {settings.profile?.avatarUrl ? (

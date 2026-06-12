@@ -2,6 +2,7 @@ import { MealPlanService } from "../../application";
 import { InMemoryMealPlanRepository } from "../../infrastructure/memory";
 import { SupabaseMealPlanRepository } from "../../infrastructure/supabase";
 import { NUTRITION_PLAN } from "../data/nutritionPlan";
+import { applyCurrentWeekToNutritionPlan } from "../currentWeekPlanData";
 import {
   authProvider,
   isRemoteConfigured,
@@ -13,7 +14,7 @@ import {
 } from "./legacyNutritionPlanMapper";
 
 const mealPlanRepository = new InMemoryMealPlanRepository([
-  legacyNutritionPlanToDomain(NUTRITION_PLAN),
+  legacyNutritionPlanToDomain(applyCurrentWeekToNutritionPlan(NUTRITION_PLAN)),
 ]);
 
 export const mealPlanService = new MealPlanService(mealPlanRepository);
@@ -26,7 +27,9 @@ export const mealPlanRuntime = {
   async ensureDemoSeeded() {
     const active = await mealPlanRepository.getActiveByUser(DEMO_MEAL_PLAN_USER_ID);
     if (!active) {
-      await mealPlanRepository.save(legacyNutritionPlanToDomain(NUTRITION_PLAN));
+      await mealPlanRepository.save(
+        legacyNutritionPlanToDomain(applyCurrentWeekToNutritionPlan(NUTRITION_PLAN)),
+      );
     }
   },
 };

@@ -25,6 +25,7 @@ import {
   type TrainingPlanRow,
   type TrainingWorkoutId,
 } from "../../data/trainingPlan";
+import { formatWeekdayShortLabel } from "../../dateDisplay";
 
 const RECOVERY_IDS: TrainingWorkoutId[] = [
   "mobility-flow",
@@ -57,7 +58,7 @@ const TRAINING_CATEGORY_META = {
     borderClassName: "border-[#F0DED2]",
   },
   mobilitaet: {
-    label: "Mobilitaet",
+    label: "Mobilität",
     iconClassName: "text-[#3D7C74]",
     badgeClassName: "bg-[#E2F1EE] text-[#3D7C74]",
     surfaceClassName: "bg-[#F1FAF8]",
@@ -76,7 +77,7 @@ function normalizeCategory(value: string) {
   return value
     .replace("ä", "ae")
     .replace("Ä", "Ae")
-    .replace("Ã¤", "ae")
+    .replace("ä", "ae")
     .toLowerCase();
 }
 
@@ -233,7 +234,7 @@ function PlanWorkoutCard({
           <div className="flex items-start justify-between gap-2">
             <h4 className="text-[12px] font-bold text-gray-900 leading-tight min-w-0 flex-1">
               <span className="mr-1 text-[#4A634A] uppercase tracking-[0.14em]">
-                {row.tag}
+                {formatWeekdayShortLabel(row.tag)}
               </span>
               {workout.title}
             </h4>
@@ -432,7 +433,7 @@ function GeneratedWorkoutCard({
             <h4 className="text-[13px] font-bold leading-tight text-gray-900">
               {row ? (
                 <span className="mr-1 text-[#4A634A] uppercase tracking-[0.14em]">
-                  {row.tag}
+                  {formatWeekdayShortLabel(row.tag)}
                 </span>
               ) : null}
               {workout.title}
@@ -649,10 +650,10 @@ export function WorkoutsSection({
           <CalendarEmptyState
             title={
               calendarMode === "week"
-                ? `Keine Trainingsdaten fuer KW ${selectedWeek ?? activeWeek}`
-                : `Keine Trainingsdaten fuer ${selectedDateLabel}`
+                ? `Keine Trainingsdaten für KW ${selectedWeek ?? activeWeek}`
+                : `Keine Trainingsdaten für ${selectedDateLabel}`
             }
-            description="Fuer diesen Zeitraum liegt im aktiven TrainingPlan noch keine Einheit vor."
+            description="Für diesen Zeitraum liegt im aktiven TrainingPlan noch keine Einheit vor."
             onCreatePlan={onCreatePlan}
             onManualAdd={onManualAdd}
           />
@@ -689,7 +690,7 @@ export function WorkoutsSection({
             </h4>
             <p className="text-[12px] text-gray-500 max-w-[240px]">
               {activeRow.recoveryNote ??
-                "Nutze den Tag fuer Erholung, einen Spaziergang oder lockeres Stretching."}
+                "Nutze den Tag für Erholung, einen Spaziergang oder lockeres Stretching."}
             </p>
           </div>
         )}
@@ -707,7 +708,7 @@ export function WorkoutsSection({
               key={`${entry.row.tag}-${entry.workoutId}`}
               workoutId={entry.workoutId}
               generatedWorkout={entry.row.generatedWorkouts?.[entry.workoutId]}
-              label={`${entry.row.tag}, ${entry.row.zeit}`}
+              label={`${formatWeekdayShortLabel(entry.row.tag)}, ${entry.row.zeit}`}
               onClick={setSelectedWorkout}
             />
           ))}

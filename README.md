@@ -27,23 +27,13 @@ There is currently no `test` script in `package.json`.
 
 ## Architecture Notes
 
-- Phase 11 cross-domain orchestration preparation: `docs/architecture/phase-11-cross-domain-orchestration-preparation.md`
-- Phase 12 controlled WeekPlan orchestration write path: `docs/architecture/phase-12-controlled-weekplan-orchestration-write-path.md`
-- Phase 13 safe generated-draft review and activation: `docs/architecture/phase-13-safe-generated-draft-review-activation.md`
-- Phase 14 workspace restoration and verification: `docs/architecture/phase-14-workspace-restoration-and-architecture-verification.md`
-- Phase 15 remote persistence foundation restoration: `docs/architecture/phase-15-remote-persistence-foundation-restoration.md`
-- Phase 16 live remote validation: `docs/architecture/phase-16-live-remote-validation.md`
-- Phase 17 live remote validation results: `docs/architecture/phase-17-live-remote-validation-results.md`
-- Phase 18 build stabilization and WeekPlan local-first restoration: `docs/architecture/phase-18-build-stabilization-and-weekplan-local-first-restoration.md`
-- Phase 19 browser validation and WeekPlan local-first hardening: `docs/architecture/phase-19-browser-validation-and-weekplan-local-first-hardening.md`
-- Phase 20 trusted live validation and WeekPlan local-first hardening: `docs/architecture/phase-20-trusted-live-validation-and-weekplan-local-first-hardening.md`
-- Phase 21 trusted live validation enablement and secret hygiene completion: `docs/architecture/phase-21-trusted-live-validation-enablement-and-secret-hygiene-completion.md`
+The living domain overview is `docs/architecture/domain-model-v1.md`. Historical phase logs were removed from this cleaned workspace.
 
-## Phase 17 Remote Persistence Status
+## Remote Persistence Status
 
 The current workspace has demo-local and Supabase remote repository paths for WeekPlan, MealPlan, and TrainingPlan. WeekPlan also has a narrow IndexedDB-backed local-first repository composed over Supabase for signed-in remote mode.
 
-Live Supabase validation has been performed against the linked development project documented in `docs/architecture/phase-17-live-remote-validation-results.md`. WeekPlan sync queues and conflict metadata remain deferred recovery work. MealPlan and TrainingPlan remain remote-only.
+WeekPlan sync queues and conflict metadata remain deferred recovery work. MealPlan and TrainingPlan remain remote-only.
 
 ## Supabase Setup
 

@@ -1,6 +1,7 @@
 import type { WeekPlan, WeekPlanEvent } from "../../domain";
 import type { DayPlan, ScheduleEntry } from "../data/weekPlan";
 import { getDayDate } from "../data/weekPlan";
+import { getISOWeekNumber } from "../calendarWeekOptions";
 
 export const DEMO_WEEK_PLAN_USER_ID = "demo-user";
 export const DEMO_WEEK_PLAN_ID = "demo-week-plan-2026-04-06";
@@ -10,12 +11,13 @@ export function legacyWeekPlanToDomain(
   userId = DEMO_WEEK_PLAN_USER_ID,
 ): WeekPlan {
   const isoDates = days.map((day) => toIsoDate(getDayDate(day)));
-  const now = "2026-04-06T00:00:00.000Z";
+  const now = new Date().toISOString();
+  const weekNumber = getISOWeekNumber(getDayDate(days[0]));
 
   return {
     id: DEMO_WEEK_PLAN_ID,
     userId,
-    title: "KW 15 WeekPlan",
+    title: `KW ${weekNumber} WeekPlan`,
     status: "active",
     source: "import",
     version: 1,
